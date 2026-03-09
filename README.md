@@ -223,4 +223,5 @@ Issues and PRs welcome. If something doesn't work on your machine or you find a 
 ## License
 
 Apache 2.0 - See [LICENSE.md](LICENSE.md) for details.
-Portions Copyright © 2026 Apple Inc.
+
+The npm package bundles Apple's Foundation Models C bindings and prebuilt dylib, which are also Apache 2.0. See [NOTICE](NOTICE) for details.

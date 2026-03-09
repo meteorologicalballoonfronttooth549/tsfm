@@ -35,7 +35,7 @@ A prebuilt `libFoundationModels.dylib` is bundled with the npm package. Xcode no
 ## Quick start
 
 ```ts
-import { SystemLanguageModel, LanguageModelSession } from "apple-fm-ts";
+import { SystemLanguageModel, LanguageModelSession } from "afm-ts-sdk";
 
 const model = new SystemLanguageModel();
 const { available } = await model.waitUntilAvailable();
@@ -54,7 +54,7 @@ console.log(reply); // "The capital of France is Paris."
 ### `SystemLanguageModel`
 
 ```ts
-import { SystemLanguageModel, SystemLanguageModelUseCase, SystemLanguageModelGuardrails } from "apple-fm-ts";
+import { SystemLanguageModel, SystemLanguageModelUseCase, SystemLanguageModelGuardrails } from "afm-ts-sdk";
 
 const model = new SystemLanguageModel({
   useCase:    SystemLanguageModelUseCase.GENERAL,           // default
@@ -94,7 +94,7 @@ All methods accept an optional `{ options?: [GenerationOptions](#generationoptio
 ### `GenerationSchema`
 
 ```ts
-import { GenerationSchema, GenerationGuide } from "apple-fm-ts";
+import { GenerationSchema, GenerationGuide } from "afm-ts-sdk";
 
 const schema = new GenerationSchema("Person", "A person profile")
   .property("name", "string", { description: "Full name" })
@@ -132,7 +132,7 @@ const age  = content.value<number>("age");
 ### `GenerationOptions`
 
 ```ts
-import { SamplingMode } from "apple-fm-ts";
+import { SamplingMode } from "afm-ts-sdk";
 
 await session.respond("prompt", {
   options: {
@@ -148,7 +148,7 @@ await session.respond("prompt", {
 ### `Tool`
 
 ```ts
-import { Tool, GenerationSchema, GeneratedContent, GenerationGuide } from "apple-fm-ts";
+import { Tool, GenerationSchema, GeneratedContent, GenerationGuide } from "afm-ts-sdk";
 
 class WeatherTool extends Tool {
   readonly name        = "get_weather";
@@ -179,7 +179,7 @@ tool.dispose();
 ### `Transcript`
 
 ```ts
-import { Transcript } from "apple-fm-ts";
+import { Transcript } from "afm-ts-sdk";
 
 const json = session.transcript.toJson();
 const dict = session.transcript.toDict();
@@ -193,7 +193,7 @@ const resumed = LanguageModelSession.fromTranscript(Transcript.fromDict(dict));
 All errors extend `FoundationModelsError`:
 
 ```ts
-import { ExceededContextWindowSizeError, GuardrailViolationError } from "apple-fm-ts";
+import { ExceededContextWindowSizeError, GuardrailViolationError } from "afm-ts-sdk";
 
 try {
   await session.respond("...");

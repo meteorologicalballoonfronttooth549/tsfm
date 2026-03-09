@@ -5,16 +5,10 @@
  * This mirrors the Python SDK's GenerationSchema / GenerationSchemaProperty / GenerationGuide.
  */
 
-import { getFunctions } from "./bindings.js";
+import { getFunctions, decodeAndFreeString } from "./bindings.js";
 import { statusToError } from "./errors.js";
 
-export type PropertyType =
-  | "string"
-  | "integer"
-  | "number"
-  | "boolean"
-  | "array"
-  | "object";
+export type PropertyType = "string" | "integer" | "number" | "boolean" | "array" | "object";
 
 // ---------------------------------------------------------------------------
 // GuideType — mirrors Python's GuideType enum
@@ -99,8 +93,8 @@ export class GenerationGuide {
   /** @internal Apply this guide to a C property pointer. */
   _applyToProperty(propPtr: unknown, wrapped = false): void {
     const fn = getFunctions();
-    let guideType = this.guideType;
-    let value = this.value;
+    const guideType = this.guideType;
+    const value = this.value;
 
     // Unwrap element guide
     if (guideType === GuideType.ELEMENT) {
@@ -112,44 +106,24 @@ export class GenerationGuide {
     switch (guideType) {
       case GuideType.ANY_OF:
       case GuideType.CONSTANT: {
-        const choices =
-          guideType === GuideType.CONSTANT
-            ? [value as string]
-            : (value as string[]);
-        fn.FMGenerationSchemaPropertyAddAnyOfGuide(
-          propPtr,
-          choices,
-          choices.length,
-          wrapped,
-        );
+        const choices = guideType === GuideType.CONSTANT ? [value as string] : (value as string[]);
+        fn.FMGenerationSchemaPropertyAddAnyOfGuide(propPtr, choices, choices.length, wrapped);
         break;
       }
       case GuideType.COUNT:
-        fn.FMGenerationSchemaPropertyAddCountGuide(
-          propPtr,
-          value as number,
-          wrapped,
-        );
+        fn.FMGenerationSchemaPropertyAddCountGuide(propPtr, value as number, wrapped);
         break;
       case GuideType.MAX_ITEMS:
         fn.FMGenerationSchemaPropertyAddMaxItemsGuide(propPtr, value as number);
         break;
       case GuideType.MAXIMUM:
-        fn.FMGenerationSchemaPropertyAddMaximumGuide(
-          propPtr,
-          value as number,
-          wrapped,
-        );
+        fn.FMGenerationSchemaPropertyAddMaximumGuide(propPtr, value as number, wrapped);
         break;
       case GuideType.MIN_ITEMS:
         fn.FMGenerationSchemaPropertyAddMinItemsGuide(propPtr, value as number);
         break;
       case GuideType.MINIMUM:
-        fn.FMGenerationSchemaPropertyAddMinimumGuide(
-          propPtr,
-          value as number,
-          wrapped,
-        );
+        fn.FMGenerationSchemaPropertyAddMinimumGuide(propPtr, value as number, wrapped);
         break;
       case GuideType.RANGE: {
         const [min, max] = value as [number, number];
@@ -157,11 +131,7 @@ export class GenerationGuide {
         break;
       }
       case GuideType.REGEX:
-        fn.FMGenerationSchemaPropertyAddRegex(
-          propPtr,
-          value as string,
-          wrapped,
-        );
+        fn.FMGenerationSchemaPropertyAddRegex(propPtr, value as string, wrapped);
         break;
     }
   }
@@ -238,13 +208,9 @@ export class GenerationSchema {
   /** Serialize the schema to a plain object (mirrors Python's GenerationSchema.to_dict()). */
   toDict(): Record<string, unknown> {
     const errorCode = [0];
-    const json = getFunctions().FMGenerationSchemaGetJSONString(
-      this._ptr,
-      errorCode,
-      null,
-    ) as string | null;
-    if (!json)
-      throw statusToError(errorCode[0], "Failed to serialize GenerationSchema");
+    const ptr = getFunctions().FMGenerationSchemaGetJSONString(this._ptr, errorCode, null);
+    const json = decodeAndFreeString(ptr);
+    if (!json) throw statusToError(errorCode[0], "Failed to serialize GenerationSchema");
     return JSON.parse(json) as Record<string, unknown>;
   }
 }
@@ -271,16 +237,8 @@ export class GeneratedContent {
   static fromJson(jsonString: string): GeneratedContent {
     const fn = getFunctions();
     const errorCode = [0];
-    const ptr = fn.FMGeneratedContentCreateFromJSON(
-      jsonString,
-      errorCode,
-      null,
-    );
-    if (!ptr)
-      throw statusToError(
-        errorCode[0],
-        "Failed to create GeneratedContent from JSON",
-      );
+    const ptr = fn.FMGeneratedContentCreateFromJSON(jsonString, errorCode, null);
+    if (!ptr) throw statusToError(errorCode[0], "Failed to create GeneratedContent from JSON");
     return new GeneratedContent(ptr);
   }
 
@@ -290,7 +248,8 @@ export class GeneratedContent {
 
   /** Returns the raw JSON string of the generated content. */
   toJson(): string {
-    return (getFunctions().FMGeneratedContentGetJSONString(this._ptr) as string) ?? "{}";
+    const ptr = getFunctions().FMGeneratedContentGetJSONString(this._ptr);
+    return decodeAndFreeString(ptr) ?? "{}";
   }
 
   /** Returns the parsed JSON object. */
@@ -303,12 +262,13 @@ export class GeneratedContent {
 
   /** Returns the value of a specific property. */
   value<T = unknown>(propertyName: string): T {
-    const raw = getFunctions().FMGeneratedContentGetPropertyValue(
+    const ptr = getFunctions().FMGeneratedContentGetPropertyValue(
       this._ptr,
       propertyName,
       null,
       null,
-    ) as string | null;
+    );
+    const raw = decodeAndFreeString(ptr);
     if (raw !== null) {
       try {
         return JSON.parse(raw) as T;
@@ -321,8 +281,6 @@ export class GeneratedContent {
     if (propertyName in obj) {
       return obj[propertyName] as T;
     }
-    throw new Error(
-      `Property '${propertyName}' not found in generated content`,
-    );
+    throw new Error(`Property '${propertyName}' not found in generated content`);
   }
 }

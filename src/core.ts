@@ -1,7 +1,9 @@
 import { getFunctions } from "./bindings.js";
 
 const _modelRegistry = new FinalizationRegistry((ptr: unknown) => {
-  try { getFunctions().FMRelease(ptr); } catch {}
+  try {
+    getFunctions().FMRelease(ptr);
+  } catch {}
 });
 
 export enum SystemLanguageModelUseCase {
@@ -50,17 +52,12 @@ export class SystemLanguageModel {
   isAvailable(): AvailabilityResult {
     const fn = getFunctions();
     const reasonOut = [0];
-    const available = fn.FMSystemLanguageModelIsAvailable(
-      this._ptr,
-      reasonOut,
-    ) as boolean;
+    const available = fn.FMSystemLanguageModelIsAvailable(this._ptr, reasonOut) as boolean;
     if (available) return { available: true };
     const reason = reasonOut[0] as SystemLanguageModelUnavailableReason;
     return {
       available: false,
-      reason: Object.values(SystemLanguageModelUnavailableReason).includes(
-        reason,
-      )
+      reason: Object.values(SystemLanguageModelUnavailableReason).includes(reason)
         ? reason
         : SystemLanguageModelUnavailableReason.UNKNOWN,
     };
@@ -75,10 +72,7 @@ export class SystemLanguageModel {
    * @param timeoutMs  Maximum time to wait in milliseconds (default: 30000)
    * @returns The availability result — check `.available` to confirm success
    */
-  async waitUntilAvailable(
-    timeoutMs = 30_000,
-    intervalMs = 500,
-  ): Promise<AvailabilityResult> {
+  async waitUntilAvailable(timeoutMs = 30_000, intervalMs = 500): Promise<AvailabilityResult> {
     const deadline = Date.now() + timeoutMs;
     while (true) {
       const result = this.isAvailable();

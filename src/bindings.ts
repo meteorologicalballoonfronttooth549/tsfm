@@ -4,7 +4,6 @@
  */
 
 import koffi from "koffi";
-import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
 import { existsSync } from "fs";
@@ -55,17 +54,14 @@ export const ResponseCallbackProto = koffi.proto("ResponseCallback", "void", [
 ]);
 
 // void (*)(int status, void *generatedContent, void *userInfo)
-export const StructuredResponseCallbackProto = koffi.proto(
-  "StructuredResponseCallback",
-  "void",
-  ["int", "void *", "void *"],
-);
+export const StructuredResponseCallbackProto = koffi.proto("StructuredResponseCallback", "void", [
+  "int",
+  "void *",
+  "void *",
+]);
 
 // void (*)(void *generatedContent, unsigned int callId)
-export const ToolCallbackProto = koffi.proto("ToolCallback", "void", [
-  "void *",
-  "uint",
-]);
+export const ToolCallbackProto = koffi.proto("ToolCallback", "void", ["void *", "uint"]);
 
 // ---------------------------------------------------------------------------
 // Lazy function accessors — defined once per process
@@ -89,9 +85,8 @@ function defineFunctions() {
     ),
 
     // --- Session creation ---
-    FMLanguageModelSessionCreateDefault: fn(
-      "void * FMLanguageModelSessionCreateDefault()",
-    ),
+    // FMLanguageModelSessionCreateDefault: fn("void * FMLanguageModelSessionCreateDefault()"),
+    // ^ unused: Python SDK also skips this — always route through CreateFromSystemLanguageModel
     FMLanguageModelSessionCreateFromSystemLanguageModel: fn(
       "void * FMLanguageModelSessionCreateFromSystemLanguageModel(void * model, str instructions, void * * tools, int toolCount)",
     ),
@@ -103,9 +98,7 @@ function defineFunctions() {
     FMLanguageModelSessionIsResponding: fn(
       "bool FMLanguageModelSessionIsResponding(void * session)",
     ),
-    FMLanguageModelSessionReset: fn(
-      "void FMLanguageModelSessionReset(void * session)",
-    ),
+    FMLanguageModelSessionReset: fn("void FMLanguageModelSessionReset(void * session)"),
 
     // --- Text generation ---
     FMLanguageModelSessionRespond: fn(
@@ -130,16 +123,14 @@ function defineFunctions() {
 
     // --- Transcript ---
     FMLanguageModelSessionGetTranscriptJSONString: fn(
-      "str FMLanguageModelSessionGetTranscriptJSONString(void * session, void * outErrorCode, void * outErrorDesc)",
+      "void * FMLanguageModelSessionGetTranscriptJSONString(void * session, void * outErrorCode, void * outErrorDesc)",
     ),
     FMTranscriptCreateFromJSONString: fn(
       "void * FMTranscriptCreateFromJSONString(str jsonString, _Out_ int * outErrorCode, void * outErrorDesc)",
     ),
 
     // --- GenerationSchema ---
-    FMGenerationSchemaCreate: fn(
-      "void * FMGenerationSchemaCreate(str name, str description)",
-    ),
+    FMGenerationSchemaCreate: fn("void * FMGenerationSchemaCreate(str name, str description)"),
     FMGenerationSchemaPropertyCreate: fn(
       "void * FMGenerationSchemaPropertyCreate(str name, str description, str typeName, bool isOptional)",
     ),
@@ -176,22 +167,18 @@ function defineFunctions() {
 
     // --- GenerationSchema serialization ---
     FMGenerationSchemaGetJSONString: fn(
-      "str FMGenerationSchemaGetJSONString(void * schema, _Out_ int * outErrorCode, void * outErrorDesc)",
+      "void * FMGenerationSchemaGetJSONString(void * schema, _Out_ int * outErrorCode, void * outErrorDesc)",
     ),
 
     // --- GeneratedContent ---
     FMGeneratedContentCreateFromJSON: fn(
       "void * FMGeneratedContentCreateFromJSON(str jsonString, _Out_ int * outErrorCode, void * outErrorDesc)",
     ),
-    FMGeneratedContentGetJSONString: fn(
-      "str FMGeneratedContentGetJSONString(void * content)",
-    ),
+    FMGeneratedContentGetJSONString: fn("void * FMGeneratedContentGetJSONString(void * content)"),
     FMGeneratedContentGetPropertyValue: fn(
-      "str FMGeneratedContentGetPropertyValue(void * content, str propertyName, void * outErrorCode, void * outErrorDesc)",
+      "void * FMGeneratedContentGetPropertyValue(void * content, str propertyName, void * outErrorCode, void * outErrorDesc)",
     ),
-    FMGeneratedContentIsComplete: fn(
-      "bool FMGeneratedContentIsComplete(void * content)",
-    ),
+    FMGeneratedContentIsComplete: fn("bool FMGeneratedContentIsComplete(void * content)"),
 
     // --- Tool ---
     FMBridgedToolCreate: fn(
@@ -205,7 +192,8 @@ function defineFunctions() {
     FMTaskCancel: fn("void FMTaskCancel(void * task)"),
 
     // --- Memory ---
-    FMRetain: fn("void FMRetain(void * object)"),
+    // FMRetain: fn("void FMRetain(void * object)"),
+    // ^ unused: all Swift→JS transfers are passRetained (+1 already), only FMRelease needed
     FMRelease: fn("void FMRelease(void * object)"),
     FMFreeString: fn("void FMFreeString(void * str)"),
   };
@@ -216,3 +204,24 @@ export function getFunctions() {
   return _funcs;
 }
 
+/**
+ * Decode a null-terminated C string from a raw pointer and immediately free
+ * the underlying C memory via FMFreeString. Returns null if the pointer is null.
+ *
+ * Use this for every char * return value from the C API (transcript JSON,
+ * schema JSON, generated content JSON, property values) to avoid the leak
+ * that occurs when koffi's 'str' return type copies the string but discards
+ * the original pointer before we can free it.
+ */
+export function decodeAndFreeString(ptr: unknown): string | null {
+  if (!ptr) return null;
+  // 'char *' would treat ptr as char** (pointer-to-pointer) and segfault.
+  // 'char' with -1 reads the null-terminated byte sequence at ptr directly.
+  // koffi may return a string or an array of char codes depending on version;
+  // we handle both and re-encode via TextDecoder to preserve UTF-8.
+  const raw = koffi.decode(ptr, "char", -1);
+  getFunctions().FMFreeString(ptr);
+  if (typeof raw === "string") return raw;
+  const codes = raw as number[];
+  return new TextDecoder("utf-8").decode(new Uint8Array(codes.map((c) => c & 0xff)));
+}

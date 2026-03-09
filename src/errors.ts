@@ -107,16 +107,11 @@ export class ToolCallError extends FoundationModelsError {
   }
 }
 
-export function statusToError(
-  status: number,
-  detail?: string | null,
-): GenerationError {
+export function statusToError(status: number, detail?: string | null): GenerationError {
   const suffix = detail ? `: ${detail}` : "";
   switch (status) {
     case GenerationErrorCode.EXCEEDED_CONTEXT_WINDOW_SIZE:
-      return new ExceededContextWindowSizeError(
-        `Context window size exceeded${suffix}`,
-      );
+      return new ExceededContextWindowSizeError(`Context window size exceeded${suffix}`);
     case GenerationErrorCode.ASSETS_UNAVAILABLE:
       return new AssetsUnavailableError(`Assets unavailable${suffix}`);
     case GenerationErrorCode.GUARDRAIL_VIOLATION:
@@ -124,9 +119,7 @@ export function statusToError(
     case GenerationErrorCode.UNSUPPORTED_GUIDE:
       return new UnsupportedGuideError(`Unsupported guide${suffix}`);
     case GenerationErrorCode.UNSUPPORTED_LANGUAGE_OR_LOCALE:
-      return new UnsupportedLanguageOrLocaleError(
-        `Unsupported language or locale${suffix}`,
-      );
+      return new UnsupportedLanguageOrLocaleError(`Unsupported language or locale${suffix}`);
     case GenerationErrorCode.DECODING_FAILURE:
       return new DecodingFailureError(`Decoding failure${suffix}`);
     case GenerationErrorCode.RATE_LIMITED:

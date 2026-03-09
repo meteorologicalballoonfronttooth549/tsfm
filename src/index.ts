@@ -19,11 +19,7 @@ export {
   type PropertyType,
 } from "./schema.js";
 
-export {
-  SamplingMode,
-  type SamplingModeType,
-  type GenerationOptions,
-} from "./options.js";
+export { SamplingMode, type SamplingModeType, type GenerationOptions } from "./options.js";
 
 export { Tool } from "./tool.js";
 

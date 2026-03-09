@@ -42,9 +42,7 @@ export interface GenerationOptions {
   maximumResponseTokens?: number;
 }
 
-export function serializeOptions(
-  options: GenerationOptions | undefined,
-): string | null {
+export function serializeOptions(options: GenerationOptions | undefined): string | null {
   if (!options) return null;
 
   const obj: Record<string, unknown> = {};
@@ -62,8 +60,7 @@ export function serializeOptions(
       const r: Record<string, unknown> = { mode: "random" };
       // Key names aligned with Python SDK: top_k, top_p
       if (s.top !== undefined) r.top_k = s.top;
-      if (s.probabilityThreshold !== undefined)
-        r.top_p = s.probabilityThreshold;
+      if (s.probabilityThreshold !== undefined) r.top_p = s.probabilityThreshold;
       if (s.seed !== undefined) r.seed = s.seed;
       obj.sampling = r;
     }

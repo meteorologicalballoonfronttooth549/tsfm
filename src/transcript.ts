@@ -1,4 +1,4 @@
-import { getFunctions } from "./bindings.js";
+import { getFunctions, decodeAndFreeString } from "./bindings.js";
 import { statusToError } from "./errors.js";
 
 export class Transcript {
@@ -17,11 +17,12 @@ export class Transcript {
 
   /** Export the transcript as a JSON string for persistence. */
   toJson(): string {
-    const json = getFunctions().FMLanguageModelSessionGetTranscriptJSONString(
+    const ptr = getFunctions().FMLanguageModelSessionGetTranscriptJSONString(
       this._sessionPtr,
       null,
       null,
-    ) as string | null;
+    );
+    const json = decodeAndFreeString(ptr);
     if (!json) throw new Error("Failed to export transcript");
     return json;
   }

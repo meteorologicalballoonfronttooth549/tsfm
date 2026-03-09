@@ -1,5 +1,5 @@
 /**
- * Quick usage examples for apple-fm-ts.
+ * Quick usage examples for afm-ts-sdk.
  * Run after building: npx tsx example.ts
  */
 
@@ -42,9 +42,7 @@ async function streamingExample() {
   const session = new LanguageModelSession();
 
   process.stdout.write("Streaming: ");
-  for await (const chunk of session.streamResponse(
-    "Tell me a joke in one sentence.",
-  )) {
+  for await (const chunk of session.streamResponse("Tell me a joke in one sentence.")) {
     process.stdout.write(chunk);
   }
   console.log();
@@ -69,10 +67,7 @@ async function structuredExample() {
     .property("breed", "string", { description: "The cat's breed" });
 
   const session = new LanguageModelSession();
-  const content = await session.respondWithSchema(
-    "Generate a rescue cat",
-    schema,
-  );
+  const content = await session.respondWithSchema("Generate a rescue cat", schema);
 
   const cat: Cat = {
     name: content.value("name"),
@@ -109,18 +104,12 @@ async function jsonSchemaExample() {
 
 class CalculatorTool extends Tool {
   readonly name = "calculator";
-  readonly description =
-    "Performs basic arithmetic. Returns the result as a number.";
+  readonly description = "Performs basic arithmetic. Returns the result as a number.";
 
-  readonly argumentsSchema = new GenerationSchema(
-    "CalculatorParams",
-    "Calculator inputs",
-  )
+  readonly argumentsSchema = new GenerationSchema("CalculatorParams", "Calculator inputs")
     .property("operation", "string", {
       description: "One of: add, subtract, multiply, divide",
-      guides: [
-        GenerationGuide.anyOf(["add", "subtract", "multiply", "divide"]),
-      ],
+      guides: [GenerationGuide.anyOf(["add", "subtract", "multiply", "divide"])],
     })
     .property("a", "number", { description: "First operand" })
     .property("b", "number", { description: "Second operand" });

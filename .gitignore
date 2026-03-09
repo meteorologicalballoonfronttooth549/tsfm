@@ -1,0 +1,7 @@
+node_modules
+.DS_Store
+dist
+build-native.log
+foundation-models-c
+.build
+native/

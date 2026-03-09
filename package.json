@@ -1,0 +1,43 @@
+{
+  "name": "afm-ts-sdk",
+  "version": "0.1.0",
+  "description": "Unofficial TypeScript bindings for Apple's Foundation Models framework (Apple Intelligence on-device LLM)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "bash scripts/build-native.sh && tsc",
+    "prepublishOnly": "npm run build",
+    "example": "npx tsx example.ts",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist/",
+    "native/libFoundationModels.dylib",
+    "native/FoundationModels.h",
+    "src/"
+  ],
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
+}

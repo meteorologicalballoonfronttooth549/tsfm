@@ -1,0 +1,226 @@
+# afm-ts-sdk
+
+[![npm](https://img.shields.io/npm/v/afm-ts-sdk)](https://www.npmjs.com/package/afm-ts-sdk)
+[![license](https://img.shields.io/npm/l/afm-ts-sdk)](LICENSE.md)
+
+TypeScript/Node.js SDK for accessing Apple's [Foundation Models framework](https://developer.apple.com/documentation/foundationmodels). On-device Apple Intelligence inference in Node without an API gateway or local server.
+
+Wraps the same C bridge used by [`apple/python-apple-fm-sdk`](https://github.com/apple/python-apple-fm-sdk) via [koffi](https://koffi.dev) FFI.
+
+## Overview
+
+- On-device inference (no network or API key required)
+- Streaming text generation
+- Guided generation with typed schemas and output constraints
+- Tool calling
+- Transcript persistence
+
+## Requirements
+
+- macOS 26 (Tahoe) or later, Apple Silicon
+- Apple Intelligence enabled in System Settings
+- Node.js 20+
+
+## Installation
+
+```bash
+npm install afm-ts-sdk
+```
+
+A prebuilt `libFoundationModels.dylib` is bundled with the npm package. Xcode not required.
+
+> **Rebuilding from source**
+> If the prebuilt dylib doesn't work on your system, run `npm run build` (requires Xcode 26+). The build script clones Apple's SDK and compiles the dylib locally.
+
+## Quick start
+
+```ts
+import { SystemLanguageModel, LanguageModelSession } from "apple-fm-ts";
+
+const model = new SystemLanguageModel();
+const { available } = await model.waitUntilAvailable();
+if (!available) process.exit(1);
+
+const session = new LanguageModelSession({
+  instructions: "You are a concise assistant.",
+});
+
+const reply = await session.respond("What is the capital of France?");
+console.log(reply); // "The capital of France is Paris."
+```
+
+## API
+
+### `SystemLanguageModel`
+
+```ts
+import { SystemLanguageModel, SystemLanguageModelUseCase, SystemLanguageModelGuardrails } from "apple-fm-ts";
+
+const model = new SystemLanguageModel({
+  useCase:    SystemLanguageModelUseCase.GENERAL,           // default
+  guardrails: SystemLanguageModelGuardrails.DEFAULT,        // default
+});
+
+const { available, reason } = model.isAvailable();
+const { available } = await model.waitUntilAvailable();       // waits up to 30s
+const { available } = await model.waitUntilAvailable(10_000); // custom timeout
+
+model.dispose();
+```
+
+### `LanguageModelSession`
+
+```ts
+const session = new LanguageModelSession({
+  instructions?: string,
+  model?:        SystemLanguageModel,
+  tools?:        Tool[],
+});
+
+const text = await session.respond("prompt");
+const content = await session.respondWithSchema("prompt", schema);
+const content = await session.respondWithJsonSchema("prompt", schemaObject);
+
+for await (const chunk of session.streamResponse("prompt")) {
+  process.stdout.write(chunk);
+}
+
+session.cancel();   // cancel in-progress request
+session.dispose();
+```
+
+All methods accept an optional `{ options?: [GenerationOptions](#generationoptions) }` argument.
+
+### `GenerationSchema`
+
+```ts
+import { GenerationSchema, GenerationGuide } from "apple-fm-ts";
+
+const schema = new GenerationSchema("Person", "A person profile")
+  .property("name", "string", { description: "Full name" })
+  .property("age", "integer", {
+    description: "Age in years",
+    guides: [GenerationGuide.range(0, 120)],
+  })
+  .property("tags", "array", {
+    guides: [GenerationGuide.maxItems(5)],
+    optional: true,
+  });
+
+const content = await session.respondWithSchema("Describe a software engineer", schema);
+const name = content.value<string>("name");
+const age  = content.value<number>("age");
+```
+
+**Property types:** `"string"` | `"integer"` | `"number"` | `"boolean"` | `"array"` | `"object"`
+
+**Guide factory methods:**
+
+| method | constrains |
+| --- | --- |
+| `GenerationGuide.anyOf(["a", "b"])` | enumerated string values |
+| `GenerationGuide.constant("fixed")` | exact string value |
+| `GenerationGuide.range(min, max)` | numeric range (inclusive) |
+| `GenerationGuide.minimum(n)` | numeric lower bound |
+| `GenerationGuide.maximum(n)` | numeric upper bound |
+| `GenerationGuide.regex(pattern)` | string pattern |
+| `GenerationGuide.count(n)` | exact array length |
+| `GenerationGuide.minItems(n)` | minimum array length |
+| `GenerationGuide.maxItems(n)` | maximum array length |
+| `GenerationGuide.element(guide)` | applies a guide to array elements |
+
+### `GenerationOptions`
+
+```ts
+import { SamplingMode } from "apple-fm-ts";
+
+await session.respond("prompt", {
+  options: {
+    temperature: 0.8,
+    maximumResponseTokens: 500,
+    sampling: SamplingMode.greedy(),
+    sampling: SamplingMode.random({ top: 50, seed: 42 }),
+    sampling: SamplingMode.random({ probabilityThreshold: 0.9 }),
+  },
+});
+```
+
+### `Tool`
+
+```ts
+import { Tool, GenerationSchema, GeneratedContent, GenerationGuide } from "apple-fm-ts";
+
+class WeatherTool extends Tool {
+  readonly name        = "get_weather";
+  readonly description = "Gets current weather for a city.";
+
+  readonly argumentsSchema = new GenerationSchema("WeatherParams", "")
+    .property("city",  "string", { description: "City name" })
+    .property("units", "string", {
+      description: "Temperature units",
+      guides: [GenerationGuide.anyOf(["celsius", "fahrenheit"])],
+    });
+
+  async call(args: GeneratedContent): Promise<string> {
+    const city  = args.value<string>("city");
+    const units = args.value<string>("units");
+    return `Sunny, 22°C in ${city} (${units})`;
+  }
+}
+
+const tool = new WeatherTool();
+const session = new LanguageModelSession({ tools: [tool] });
+const reply = await session.respond("What's the weather in Tulsa?");
+
+session.dispose();
+tool.dispose();
+```
+
+### `Transcript`
+
+```ts
+import { Transcript } from "apple-fm-ts";
+
+const json = session.transcript.toJson();
+const dict = session.transcript.toDict();
+
+const resumed = LanguageModelSession.fromTranscript(Transcript.fromJson(json));
+const resumed = LanguageModelSession.fromTranscript(Transcript.fromDict(dict));
+```
+
+## Error handling
+
+All errors extend `FoundationModelsError`:
+
+```ts
+import { ExceededContextWindowSizeError, GuardrailViolationError } from "apple-fm-ts";
+
+try {
+  await session.respond("...");
+} catch (e) {
+  if (e instanceof ExceededContextWindowSizeError) { /* ... */ }
+  if (e instanceof GuardrailViolationError)        { /* ... */ }
+}
+```
+
+| class | when |
+| --- | --- |
+| `ExceededContextWindowSizeError` | session history too long |
+| `AssetsUnavailableError` | model not downloaded |
+| `GuardrailViolationError` | content policy violation |
+| `RateLimitedError` | too many requests |
+| `ConcurrentRequestsError` | session already responding |
+| `RefusalError` | model declined to answer |
+| `DecodingFailureError` | structured generation parse error |
+| `InvalidGenerationSchemaError` | malformed `GenerationSchema` |
+| `UnsupportedLanguageOrLocaleError` | language not supported |
+| `ToolCallError` | tool threw during `call()` |
+
+## Contributing
+
+Issues and PRs welcome. If something doesn't work on your machine or you find a missing API, open an issue.
+
+## License
+
+Apache 2.0 - See [LICENSE.md](LICENSE.md) for details.
+Portions Copyright © 2026 Apple Inc.

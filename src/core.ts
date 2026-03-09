@@ -1,0 +1,102 @@
+import { getFunctions } from "./bindings.js";
+
+const _modelRegistry = new FinalizationRegistry((ptr: unknown) => {
+  try { getFunctions().FMRelease(ptr); } catch {}
+});
+
+export enum SystemLanguageModelUseCase {
+  GENERAL = 0,
+  CONTENT_TAGGING = 1,
+}
+
+export enum SystemLanguageModelGuardrails {
+  DEFAULT = 0,
+  PERMISSIVE_CONTENT_TRANSFORMATIONS = 1,
+}
+
+export enum SystemLanguageModelUnavailableReason {
+  APPLE_INTELLIGENCE_NOT_ENABLED = 0,
+  DEVICE_NOT_ELIGIBLE = 1,
+  MODEL_NOT_READY = 2,
+  UNKNOWN = 0xff,
+}
+
+export interface AvailabilityResult {
+  available: boolean;
+  reason?: SystemLanguageModelUnavailableReason;
+}
+
+export class SystemLanguageModel {
+  /** @internal */
+  _ptr: unknown;
+
+  constructor(
+    opts: {
+      useCase?: SystemLanguageModelUseCase;
+      guardrails?: SystemLanguageModelGuardrails;
+    } = {},
+  ) {
+    const fn = getFunctions();
+    this._ptr = fn.FMSystemLanguageModelCreate(
+      opts.useCase ?? SystemLanguageModelUseCase.GENERAL,
+      opts.guardrails ?? SystemLanguageModelGuardrails.DEFAULT,
+    );
+    if (!this._ptr) {
+      throw new Error("Failed to create SystemLanguageModel");
+    }
+    _modelRegistry.register(this, this._ptr, this);
+  }
+
+  isAvailable(): AvailabilityResult {
+    const fn = getFunctions();
+    const reasonOut = [0];
+    const available = fn.FMSystemLanguageModelIsAvailable(
+      this._ptr,
+      reasonOut,
+    ) as boolean;
+    if (available) return { available: true };
+    const reason = reasonOut[0] as SystemLanguageModelUnavailableReason;
+    return {
+      available: false,
+      reason: Object.values(SystemLanguageModelUnavailableReason).includes(
+        reason,
+      )
+        ? reason
+        : SystemLanguageModelUnavailableReason.UNKNOWN,
+    };
+  }
+
+  /**
+   * Resolves when the model becomes available, or once the timeout expires.
+   * Useful in long-lived server processes where the model may not be ready
+   * immediately at startup. Only retries on MODEL_NOT_READY; permanent
+   * failures (device ineligible, Apple Intelligence disabled) return immediately.
+   *
+   * @param timeoutMs  Maximum time to wait in milliseconds (default: 30000)
+   * @returns The availability result — check `.available` to confirm success
+   */
+  async waitUntilAvailable(
+    timeoutMs = 30_000,
+    intervalMs = 500,
+  ): Promise<AvailabilityResult> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+      const result = this.isAvailable();
+      if (result.available) return result;
+      if (result.reason !== SystemLanguageModelUnavailableReason.MODEL_NOT_READY) {
+        // Not a transient condition — don't bother retrying
+        return result;
+      }
+      if (Date.now() >= deadline) return result;
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  dispose(): void {
+    if (this._ptr) {
+      _modelRegistry.unregister(this);
+      getFunctions().FMRelease(this._ptr);
+      this._ptr = null;
+    }
+  }
+}

@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockFns, mockKoffi, capturedCallbacks, capturedRegistryCallback } = vi.hoisted(() => {
   const capturedCallbacks: Array<(contentRef: unknown, callId: number) => void> = [];
-  let registryCb: ((held: { ptr: unknown; callbackPtr: unknown }) => void) | null = null;
+  let registryCb: ((held: { pointer: unknown; callback: unknown }) => void) | null = null;
   globalThis.FinalizationRegistry = class MockFinalizationRegistry {
-    constructor(callback: (held: { ptr: unknown; callbackPtr: unknown }) => void) {
+    constructor(callback: (held: { pointer: unknown; callback: unknown }) => void) {
       registryCb = callback;
     }
     register() {}
@@ -12,17 +12,17 @@ const { mockFns, mockKoffi, capturedCallbacks, capturedRegistryCallback } = vi.h
   } as unknown as typeof FinalizationRegistry;
   return {
     mockFns: {
-      FMBridgedToolCreate: vi.fn((): string | null => "mock-tool-ptr"),
+      FMBridgedToolCreate: vi.fn((): string | null => "mock-tool-pointer"),
       FMBridgedToolFinishCall: vi.fn(),
       FMRelease: vi.fn(),
     },
     mockKoffi: {
       register: vi.fn((cb: unknown, _proto: unknown) => {
         capturedCallbacks.push(cb as (contentRef: unknown, callId: number) => void);
-        return "mock-cb-ptr";
+        return "mock-cb-pointer";
       }),
       unregister: vi.fn(),
-      pointer: vi.fn((_proto: unknown) => "mock-proto-ptr"),
+      pointer: vi.fn((_proto: unknown) => "mock-proto-pointer"),
     },
     capturedCallbacks,
     capturedRegistryCallback: () => registryCb,
@@ -36,17 +36,18 @@ vi.mock("koffi", () => ({
 vi.mock("../../src/bindings.js", () => ({
   getFunctions: () => mockFns,
   decodeAndFreeString: vi.fn(),
+  unregisterCallback: (pointer: unknown) => mockKoffi.unregister(pointer),
   ToolCallbackProto: "ToolCallbackProto",
 }));
 
 vi.mock("../../src/schema.js", () => ({
   GenerationSchema: class MockSchema {
-    _ptr = "mock-schema-ptr";
+    _nativeSchema = "mock-schema-pointer";
   },
   GeneratedContent: class MockContent {
-    _ptr: unknown;
-    constructor(ptr: unknown) {
-      this._ptr = ptr;
+    _nativeContent: unknown;
+    constructor(pointer: unknown) {
+      this._nativeContent = pointer;
     }
   },
 }));
@@ -87,12 +88,12 @@ describe("Tool", () => {
     expect(mockFns.FMBridgedToolCreate).toHaveBeenCalledWith(
       "test-tool",
       "A test tool",
-      "mock-schema-ptr",
-      "mock-cb-ptr",
+      "mock-schema-pointer",
+      "mock-cb-pointer",
       expect.any(Array),
       null,
     );
-    expect(tool._ptr).toBe("mock-tool-ptr");
+    expect(tool._nativeTool).toBe("mock-tool-pointer");
   });
 
   it("_register is idempotent", () => {
@@ -100,6 +101,19 @@ describe("Tool", () => {
     tool._register();
     tool._register();
     expect(mockFns.FMBridgedToolCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("_register throws when argumentsSchema is not initialized", () => {
+    class BadTool extends Tool {
+      readonly name = "bad-tool";
+      readonly description = "Missing schema";
+      readonly argumentsSchema = { _nativeSchema: null } as unknown as GenerationSchema;
+      async call(): Promise<string> {
+        return "";
+      }
+    }
+    const tool = new BadTool();
+    expect(() => tool._register()).toThrow("argumentsSchema must be fully initialized");
   });
 
   it("_register throws when C returns null", () => {
@@ -113,9 +127,9 @@ describe("Tool", () => {
     tool._register();
     vi.clearAllMocks();
     tool.dispose();
-    expect(mockKoffi.unregister).toHaveBeenCalledWith("mock-cb-ptr");
-    expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-tool-ptr");
-    expect(tool._ptr).toBeNull();
+    expect(mockKoffi.unregister).toHaveBeenCalledWith("mock-cb-pointer");
+    expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-tool-pointer");
+    expect(tool._nativeTool).toBeNull();
   });
 
   it("dispose is safe to call twice", () => {
@@ -144,7 +158,11 @@ describe("Tool", () => {
         expect(mockFns.FMBridgedToolFinishCall).toHaveBeenCalledTimes(1);
       });
 
-      expect(mockFns.FMBridgedToolFinishCall).toHaveBeenCalledWith("mock-tool-ptr", 42, "result");
+      expect(mockFns.FMBridgedToolFinishCall).toHaveBeenCalledWith(
+        "mock-tool-pointer",
+        42,
+        "result",
+      );
     });
 
     it("calls FMBridgedToolFinishCall with error message when call() throws an Error", async () => {
@@ -169,7 +187,7 @@ describe("Tool", () => {
       });
 
       expect(mockFns.FMBridgedToolFinishCall).toHaveBeenCalledWith(
-        "mock-tool-ptr",
+        "mock-tool-pointer",
         99,
         "Tool 'failing-tool' failed: something went wrong",
       );
@@ -197,7 +215,7 @@ describe("Tool", () => {
       });
 
       expect(mockFns.FMBridgedToolFinishCall).toHaveBeenCalledWith(
-        "mock-tool-ptr",
+        "mock-tool-pointer",
         7,
         "Tool 'string-thrower' failed: raw string error",
       );
@@ -226,7 +244,7 @@ describe("Tool", () => {
 
       // The callback should have created a GeneratedContent with the contentRef
       const contentArg = callSpy.mock.calls[0][0];
-      expect(contentArg._ptr).toBe("special-content-ref");
+      expect(contentArg._nativeContent).toBe("special-content-ref");
     });
   });
 
@@ -234,9 +252,9 @@ describe("Tool", () => {
     it("unregisters callback and releases pointer when GC fires", () => {
       const cleanup = capturedRegistryCallback();
       expect(cleanup).toBeTypeOf("function");
-      cleanup!({ ptr: "gc-tool-ptr", callbackPtr: "gc-cb-ptr" });
-      expect(mockKoffi.unregister).toHaveBeenCalledWith("gc-cb-ptr");
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("gc-tool-ptr");
+      cleanup!({ pointer: "gc-tool-pointer", callback: "gc-cb-pointer" });
+      expect(mockKoffi.unregister).toHaveBeenCalledWith("gc-cb-pointer");
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("gc-tool-pointer");
     });
 
     it("swallows errors from koffi.unregister in GC callback", () => {
@@ -245,8 +263,8 @@ describe("Tool", () => {
       });
       const cleanup = capturedRegistryCallback();
       // Should not throw, and should still attempt FMRelease
-      expect(() => cleanup!({ ptr: "gc-ptr", callbackPtr: "bad-cb" })).not.toThrow();
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("gc-ptr");
+      expect(() => cleanup!({ pointer: "gc-pointer", callback: "bad-cb" })).not.toThrow();
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("gc-pointer");
     });
 
     it("swallows errors from FMRelease in GC callback", () => {
@@ -254,7 +272,7 @@ describe("Tool", () => {
         throw new Error("already freed");
       });
       const cleanup = capturedRegistryCallback();
-      expect(() => cleanup!({ ptr: "bad-ptr", callbackPtr: "gc-cb" })).not.toThrow();
+      expect(() => cleanup!({ pointer: "bad-pointer", callback: "gc-cb" })).not.toThrow();
     });
   });
 });

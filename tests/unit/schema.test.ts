@@ -4,8 +4,8 @@ import { createMockFunctions } from "./helpers/mock-bindings.js";
 const mockFns = createMockFunctions();
 vi.mock("../../src/bindings.js", () => ({
   getFunctions: () => mockFns,
-  decodeAndFreeString: vi.fn((ptr: unknown) => {
-    if (!ptr) return null;
+  decodeAndFreeString: vi.fn((pointer: unknown) => {
+    if (!pointer) return null;
     return '{"name":"test"}';
   }),
 }));
@@ -15,10 +15,56 @@ import {
   GenerationGuide,
   GenerationSchema,
   GenerationSchemaProperty,
+  afmSchemaFormat,
 } from "../../src/schema.js";
+import type { NativePointer } from "../../src/bindings.js";
+
+const mockPointer = (label: string) => label as unknown as NativePointer;
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("afmSchemaFormat", () => {
+  it("adds title and additionalProperties defaults", () => {
+    const result = afmSchemaFormat({ type: "object", properties: { name: { type: "string" } } });
+    expect(result.title).toBe("Schema");
+    expect(result.additionalProperties).toBe(false);
+  });
+
+  it("derives x-order from properties keys when not provided", () => {
+    const result = afmSchemaFormat({
+      type: "object",
+      properties: { age: { type: "number" }, name: { type: "string" } },
+    });
+    expect(result["x-order"]).toEqual(["age", "name"]);
+  });
+
+  it("preserves caller-supplied x-order", () => {
+    const result = afmSchemaFormat({
+      type: "object",
+      properties: { age: { type: "number" }, name: { type: "string" } },
+      "x-order": ["name", "age"],
+    });
+    expect(result["x-order"]).toEqual(["name", "age"]);
+  });
+
+  it("produces empty x-order when properties is absent", () => {
+    const result = afmSchemaFormat({ type: "object" });
+    expect(result["x-order"]).toEqual([]);
+  });
+
+  it("caller-supplied title overrides the default", () => {
+    const result = afmSchemaFormat({ title: "Person", type: "object", properties: {} });
+    expect(result.title).toBe("Person");
+  });
+
+  it("does not mutate the input object", () => {
+    const input = { type: "object", properties: { x: { type: "string" } } };
+    afmSchemaFormat(input);
+    expect(Object.keys(input)).not.toContain("title");
+    expect(Object.keys(input)).not.toContain("additionalProperties");
+  });
 });
 
 describe("GenerationGuide", () => {
@@ -72,9 +118,9 @@ describe("GenerationGuide", () => {
 describe("GenerationGuide._applyToProperty", () => {
   it("anyOf calls FMGenerationSchemaPropertyAddAnyOfGuide", () => {
     const guide = GenerationGuide.anyOf(["a", "b"]);
-    guide._applyToProperty("mock-ptr");
+    guide._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddAnyOfGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       ["a", "b"],
       2,
       false,
@@ -83,9 +129,9 @@ describe("GenerationGuide._applyToProperty", () => {
 
   it("constant calls FMGenerationSchemaPropertyAddAnyOfGuide with single value", () => {
     const guide = GenerationGuide.constant("fixed");
-    guide._applyToProperty("mock-ptr");
+    guide._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddAnyOfGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       ["fixed"],
       1,
       false,
@@ -94,9 +140,9 @@ describe("GenerationGuide._applyToProperty", () => {
 
   it("count calls FMGenerationSchemaPropertyAddCountGuide", () => {
     const guide = GenerationGuide.count(3);
-    guide._applyToProperty("mock-ptr");
+    guide._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddCountGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       3,
       false,
     );
@@ -104,9 +150,9 @@ describe("GenerationGuide._applyToProperty", () => {
 
   it("range calls FMGenerationSchemaPropertyAddRangeGuide", () => {
     const guide = GenerationGuide.range(1, 10);
-    guide._applyToProperty("mock-ptr");
+    guide._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddRangeGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       1,
       10,
       false,
@@ -115,47 +161,53 @@ describe("GenerationGuide._applyToProperty", () => {
 
   it("regex calls FMGenerationSchemaPropertyAddRegex", () => {
     const guide = GenerationGuide.regex("^\\d+$");
-    guide._applyToProperty("mock-ptr");
+    guide._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddRegex).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       "^\\d+$",
       false,
     );
   });
 
   it("minimum calls FMGenerationSchemaPropertyAddMinimumGuide", () => {
-    GenerationGuide.minimum(5)._applyToProperty("mock-ptr");
+    GenerationGuide.minimum(5)._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddMinimumGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       5,
       false,
     );
   });
 
   it("maximum calls FMGenerationSchemaPropertyAddMaximumGuide", () => {
-    GenerationGuide.maximum(50)._applyToProperty("mock-ptr");
+    GenerationGuide.maximum(50)._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddMaximumGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       50,
       false,
     );
   });
 
   it("minItems calls FMGenerationSchemaPropertyAddMinItemsGuide", () => {
-    GenerationGuide.minItems(2)._applyToProperty("mock-ptr");
-    expect(mockFns.FMGenerationSchemaPropertyAddMinItemsGuide).toHaveBeenCalledWith("mock-ptr", 2);
+    GenerationGuide.minItems(2)._applyToProperty(mockPointer("mock-property"));
+    expect(mockFns.FMGenerationSchemaPropertyAddMinItemsGuide).toHaveBeenCalledWith(
+      "mock-property",
+      2,
+    );
   });
 
   it("maxItems calls FMGenerationSchemaPropertyAddMaxItemsGuide", () => {
-    GenerationGuide.maxItems(8)._applyToProperty("mock-ptr");
-    expect(mockFns.FMGenerationSchemaPropertyAddMaxItemsGuide).toHaveBeenCalledWith("mock-ptr", 8);
+    GenerationGuide.maxItems(8)._applyToProperty(mockPointer("mock-property"));
+    expect(mockFns.FMGenerationSchemaPropertyAddMaxItemsGuide).toHaveBeenCalledWith(
+      "mock-property",
+      8,
+    );
   });
 
   it("element unwraps and applies inner guide with wrapped=true", () => {
     const inner = GenerationGuide.range(0, 10);
-    GenerationGuide.element(inner)._applyToProperty("mock-ptr");
+    GenerationGuide.element(inner)._applyToProperty(mockPointer("mock-property"));
     expect(mockFns.FMGenerationSchemaPropertyAddRangeGuide).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-property",
       0,
       10,
       true,
@@ -172,7 +224,7 @@ describe("GenerationSchemaProperty", () => {
       "string",
       false,
     );
-    expect(prop._ptr).toBe("mock-prop-ptr");
+    expect(prop._nativeProperty).toBe("mock-prop-pointer");
   });
 
   it("passes description and optional flag", () => {
@@ -200,7 +252,7 @@ describe("GenerationSchema", () => {
   it("creates schema with name and description", () => {
     const schema = new GenerationSchema("Cat", "A cat");
     expect(mockFns.FMGenerationSchemaCreate).toHaveBeenCalledWith("Cat", "A cat");
-    expect(schema._ptr).toBe("mock-schema-ptr");
+    expect(schema._nativeSchema).toBe("mock-schema-pointer");
   });
 
   it("creates schema with null description when omitted", () => {
@@ -213,8 +265,8 @@ describe("GenerationSchema", () => {
     const prop = new GenerationSchemaProperty("field", "string");
     const result = schema.addProperty(prop);
     expect(mockFns.FMGenerationSchemaAddProperty).toHaveBeenCalledWith(
-      "mock-schema-ptr",
-      "mock-prop-ptr",
+      "mock-schema-pointer",
+      "mock-prop-pointer",
     );
     expect(result).toBe(schema);
   });
@@ -224,7 +276,7 @@ describe("GenerationSchema", () => {
       .property("name", "string")
       .property("age", "integer");
     expect(mockFns.FMGenerationSchemaAddProperty).toHaveBeenCalledTimes(2);
-    expect(schema._ptr).toBe("mock-schema-ptr");
+    expect(schema._nativeSchema).toBe("mock-schema-pointer");
   });
 
   it("addReferenceSchema calls FFI", () => {
@@ -232,8 +284,8 @@ describe("GenerationSchema", () => {
     const ref = new GenerationSchema("Ref");
     schema.addReferenceSchema(ref);
     expect(mockFns.FMGenerationSchemaAddReferenceSchema).toHaveBeenCalledWith(
-      "mock-schema-ptr",
-      "mock-schema-ptr",
+      "mock-schema-pointer",
+      "mock-schema-pointer",
     );
   });
 
@@ -269,7 +321,7 @@ describe("GeneratedContent", () => {
       null,
     );
     expect(content).toBeInstanceOf(GeneratedContent);
-    expect(content._ptr).toBe("mock-content-ptr");
+    expect(content._nativeContent).toBe("mock-content-pointer");
   });
 
   it("fromJson throws when C returns null pointer", () => {
@@ -278,30 +330,30 @@ describe("GeneratedContent", () => {
   });
 
   it("isComplete returns boolean from FFI", () => {
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     expect(content.isComplete).toBe(true);
-    expect(mockFns.FMGeneratedContentIsComplete).toHaveBeenCalledWith("mock-ptr");
+    expect(mockFns.FMGeneratedContentIsComplete).toHaveBeenCalledWith("mock-content");
 
     mockFns.FMGeneratedContentIsComplete.mockReturnValueOnce(false);
     expect(content.isComplete).toBe(false);
   });
 
   it("toJson returns JSON string via decodeAndFreeString", () => {
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const json = content.toJson();
-    expect(mockFns.FMGeneratedContentGetJSONString).toHaveBeenCalledWith("mock-ptr");
+    expect(mockFns.FMGeneratedContentGetJSONString).toHaveBeenCalledWith("mock-content");
     expect(json).toBe('{"name":"test"}');
   });
 
   it('toJson returns "{}" when decodeAndFreeString returns null', () => {
     mockFns.FMGeneratedContentGetJSONString.mockReturnValueOnce(null);
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const json = content.toJson();
     expect(json).toBe("{}");
   });
 
   it("toObject parses JSON and caches result", () => {
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const obj1 = content.toObject();
     expect(obj1).toEqual({ name: "test" });
 
@@ -313,13 +365,13 @@ describe("GeneratedContent", () => {
   });
 
   it("value returns parsed JSON value when FFI returns non-null", () => {
-    mockFns.FMGeneratedContentGetPropertyValue.mockReturnValueOnce("mock-value-ptr");
+    mockFns.FMGeneratedContentGetPropertyValue.mockReturnValueOnce("mock-value-pointer");
     mockDecodeAndFreeString.mockReturnValueOnce('"hello"');
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const result = content.value<string>("greeting");
     expect(result).toBe("hello");
     expect(mockFns.FMGeneratedContentGetPropertyValue).toHaveBeenCalledWith(
-      "mock-ptr",
+      "mock-content",
       "greeting",
       null,
       null,
@@ -327,9 +379,9 @@ describe("GeneratedContent", () => {
   });
 
   it("value returns raw string when JSON.parse fails", () => {
-    mockFns.FMGeneratedContentGetPropertyValue.mockReturnValueOnce("mock-value-ptr");
+    mockFns.FMGeneratedContentGetPropertyValue.mockReturnValueOnce("mock-value-pointer");
     mockDecodeAndFreeString.mockReturnValueOnce("not-valid-json");
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const result = content.value<string>("field");
     expect(result).toBe("not-valid-json");
   });
@@ -338,13 +390,13 @@ describe("GeneratedContent", () => {
     // FMGeneratedContentGetPropertyValue returns null by default
     // decodeAndFreeString(null) returns null per the mock setup
     // toJson's decodeAndFreeString call returns the default '{"name":"test"}'
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     const result = content.value<string>("name");
     expect(result).toBe("test");
   });
 
   it("value throws when property not found anywhere", () => {
-    const content = new GeneratedContent("mock-ptr");
+    const content = new GeneratedContent(mockPointer("mock-content"));
     expect(() => content.value("nonexistent")).toThrow(
       "Property 'nonexistent' not found in generated content",
     );

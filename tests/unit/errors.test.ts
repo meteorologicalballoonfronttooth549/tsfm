@@ -78,6 +78,13 @@ describe("statusToError", () => {
     expect(err.message).toBe("Invalid schema");
   });
 
+  it("INVALID_SCHEMA error is catchable as GenerationError", () => {
+    // Regression test: InvalidGenerationSchemaError must extend GenerationError
+    // so callers catching GenerationError receive schema validation failures.
+    const err = statusToError(GenerationErrorCode.INVALID_SCHEMA);
+    expect(err).toBeInstanceOf(GenerationError);
+  });
+
   it("maps unknown code to GenerationError", () => {
     const err = statusToError(999);
     expect(err).toBeInstanceOf(GenerationError);
@@ -127,12 +134,13 @@ describe("error hierarchy", () => {
     expect(new RateLimitedError()).toBeInstanceOf(GenerationError);
     expect(new ConcurrentRequestsError()).toBeInstanceOf(GenerationError);
     expect(new RefusalError()).toBeInstanceOf(GenerationError);
+    expect(new InvalidGenerationSchemaError()).toBeInstanceOf(GenerationError);
   });
 
-  it("InvalidGenerationSchemaError extends FoundationModelsError but not GenerationError", () => {
+  it("InvalidGenerationSchemaError extends GenerationError and FoundationModelsError", () => {
     const err = new InvalidGenerationSchemaError();
+    expect(err).toBeInstanceOf(GenerationError);
     expect(err).toBeInstanceOf(FoundationModelsError);
-    expect(err).not.toBeInstanceOf(GenerationError);
   });
 
   it("ToolCallError captures tool name and cause", () => {

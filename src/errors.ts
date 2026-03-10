@@ -90,7 +90,7 @@ export class RefusalError extends GenerationError {
   }
 }
 
-export class InvalidGenerationSchemaError extends FoundationModelsError {
+export class InvalidGenerationSchemaError extends GenerationError {
   constructor(msg = "Invalid generation schema") {
     super(msg);
     this.name = "InvalidGenerationSchemaError";

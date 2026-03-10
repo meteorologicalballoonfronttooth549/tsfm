@@ -1,8 +1,9 @@
-import { getFunctions } from "./bindings.js";
+import { getFunctions, type NativePointer } from "./bindings.js";
+import { FoundationModelsError } from "./errors.js";
 
-const _modelRegistry = new FinalizationRegistry((ptr: unknown) => {
+const _modelRegistry = new FinalizationRegistry((pointer: NativePointer) => {
   try {
-    getFunctions().FMRelease(ptr);
+    getFunctions().FMRelease(pointer);
   } catch {}
 });
 
@@ -25,12 +26,24 @@ export enum SystemLanguageModelUnavailableReason {
 
 export interface AvailabilityResult {
   available: boolean;
+  /** Present when `available` is false. */
   reason?: SystemLanguageModelUnavailableReason;
 }
 
+/**
+ * Represents the on-device Apple Intelligence language model.
+ *
+ * Create one instance per application; it is safe to reuse across multiple
+ * `LanguageModelSession` instances. Call `isAvailable()` before creating a
+ * session, or use `waitUntilAvailable()` in server processes where the model
+ * may still be downloading at startup.
+ *
+ * Call `dispose()` when done to release the underlying C object immediately;
+ * otherwise it is released automatically when the instance is garbage collected.
+ */
 export class SystemLanguageModel {
   /** @internal */
-  _ptr: unknown;
+  _nativeModel: NativePointer | null;
 
   constructor(
     opts: {
@@ -39,28 +52,35 @@ export class SystemLanguageModel {
     } = {},
   ) {
     const fn = getFunctions();
-    this._ptr = fn.FMSystemLanguageModelCreate(
+    this._nativeModel = fn.FMSystemLanguageModelCreate(
       opts.useCase ?? SystemLanguageModelUseCase.GENERAL,
       opts.guardrails ?? SystemLanguageModelGuardrails.DEFAULT,
     );
-    if (!this._ptr) {
-      throw new Error("Failed to create SystemLanguageModel");
+    if (!this._nativeModel) {
+      throw new FoundationModelsError("Failed to create SystemLanguageModel");
     }
-    _modelRegistry.register(this, this._ptr, this);
+    _modelRegistry.register(this, this._nativeModel, this);
   }
 
+  /**
+   * Check whether the model is ready for generation.
+   *
+   * When `available` is `false`, `reason` indicates why:
+   * - `APPLE_INTELLIGENCE_NOT_ENABLED` / `DEVICE_NOT_ELIGIBLE` — permanent;
+   *   retrying will not help.
+   * - `MODEL_NOT_READY` — transient; the model is still downloading or
+   *   warming up. Use `waitUntilAvailable()` to poll.
+   */
   isAvailable(): AvailabilityResult {
     const fn = getFunctions();
     const reasonOut = [0];
-    const available = fn.FMSystemLanguageModelIsAvailable(this._ptr, reasonOut) as boolean;
+    const available: boolean = fn.FMSystemLanguageModelIsAvailable(this._nativeModel, reasonOut);
     if (available) return { available: true };
-    const reason = reasonOut[0] as SystemLanguageModelUnavailableReason;
-    return {
-      available: false,
-      reason: Object.values(SystemLanguageModelUnavailableReason).includes(reason)
-        ? reason
-        : SystemLanguageModelUnavailableReason.UNKNOWN,
-    };
+    const code: number = reasonOut[0];
+    const reason = Object.values(SystemLanguageModelUnavailableReason).includes(code)
+      ? (code as SystemLanguageModelUnavailableReason)
+      : SystemLanguageModelUnavailableReason.UNKNOWN;
+    return { available: false, reason };
   }
 
   /**
@@ -87,10 +107,10 @@ export class SystemLanguageModel {
   }
 
   dispose(): void {
-    if (this._ptr) {
+    if (this._nativeModel) {
       _modelRegistry.unregister(this);
-      getFunctions().FMRelease(this._ptr);
-      this._ptr = null;
+      getFunctions().FMRelease(this._nativeModel);
+      this._nativeModel = null;
     }
   }
 }

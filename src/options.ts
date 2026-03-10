@@ -2,7 +2,9 @@ export type SamplingModeType = "greedy" | "random";
 
 export interface SamplingMode {
   readonly type: SamplingModeType;
+  /** Top-K sampling limit. Serialized as `top_k` in the C API options JSON. */
   readonly top?: number;
+  /** Top-P (nucleus) probability threshold. Serialized as `top_p` in the C API options JSON. */
   readonly probabilityThreshold?: number;
   readonly seed?: number;
 }
@@ -53,15 +55,15 @@ export function serializeOptions(options: GenerationOptions | undefined): string
     obj.maximum_response_tokens = options.maximumResponseTokens;
   }
   if (options.sampling) {
-    const s = options.sampling;
-    if (s.type === "greedy") {
+    const sampling = options.sampling;
+    if (sampling.type === "greedy") {
       obj.sampling = { mode: "greedy" };
     } else {
       const r: Record<string, unknown> = { mode: "random" };
       // Key names aligned with Python SDK: top_k, top_p
-      if (s.top !== undefined) r.top_k = s.top;
-      if (s.probabilityThreshold !== undefined) r.top_p = s.probabilityThreshold;
-      if (s.seed !== undefined) r.seed = s.seed;
+      if (sampling.top !== undefined) r.top_k = sampling.top;
+      if (sampling.probabilityThreshold !== undefined) r.top_p = sampling.probabilityThreshold;
+      if (sampling.seed !== undefined) r.seed = sampling.seed;
       obj.sampling = r;
     }
   }

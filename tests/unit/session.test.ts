@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockFunctions } from "./helpers/mock-bindings.js";
 
 const { capturedSessionRegistryCallback } = vi.hoisted(() => {
-  let registryCb: ((ptr: unknown) => void) | null = null;
+  let registryCb: ((pointer: unknown) => void) | null = null;
   globalThis.FinalizationRegistry = class MockFinalizationRegistry {
-    constructor(callback: (ptr: unknown) => void) {
+    constructor(callback: (pointer: unknown) => void) {
       registryCb = callback;
     }
     register() {}
@@ -21,27 +21,28 @@ vi.mock("koffi", () => ({
   default: {
     register: vi.fn((cb: (...args: unknown[]) => void, _proto: unknown) => {
       lastRegisteredCallback = cb;
-      return "mock-cb-ptr";
+      return "mock-cb-pointer";
     }),
     unregister: vi.fn(),
-    as: vi.fn((_arr: unknown[], _type: string) => "mock-arr-ptr"),
-    pointer: vi.fn((_proto: unknown) => "mock-proto-ptr"),
+    as: vi.fn((_arr: unknown[], _type: string) => "mock-arr-pointer"),
+    pointer: vi.fn((_proto: unknown) => "mock-proto-pointer"),
   },
 }));
 
 vi.mock("../../src/bindings.js", () => ({
   getFunctions: () => mockFns,
-  decodeAndFreeString: vi.fn((ptr: unknown) => {
-    if (!ptr) return null;
+  decodeAndFreeString: vi.fn((pointer: unknown) => {
+    if (!pointer) return null;
     return '{"key":"value"}';
   }),
+  unregisterCallback: vi.fn(),
   ResponseCallbackProto: "ResponseCallbackProto",
   StructuredResponseCallbackProto: "StructuredResponseCallbackProto",
 }));
 
 vi.mock("../../src/tool.js", () => ({
   Tool: class MockTool {
-    _ptr = "mock-tool-ptr";
+    _nativeTool = "mock-tool-pointer";
     _register() {}
   },
 }));
@@ -62,7 +63,7 @@ describe("LanguageModelSession", () => {
       null,
       0,
     );
-    expect(session._ptr).toBe("mock-session-ptr");
+    expect(session._nativeSession).toBe("mock-session-pointer");
   });
 
   it("creates session with instructions", () => {
@@ -86,7 +87,7 @@ describe("LanguageModelSession", () => {
       expect(session.isResponding).toBe(false);
     });
 
-    it("returns false when ptr is null (disposed)", () => {
+    it("returns false when pointer is null (disposed)", () => {
       const session = new LanguageModelSession();
       session.dispose();
       expect(session.isResponding).toBe(false);
@@ -99,7 +100,7 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, "Hello world", 11, null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
@@ -112,7 +113,7 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, null, 0, null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
@@ -127,7 +128,7 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, "delayed", 7, null);
         }, 15000);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
@@ -143,7 +144,7 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(7, "Rate limited", 12, null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
@@ -157,7 +158,7 @@ describe("LanguageModelSession", () => {
       (session as unknown as { _activeTask: unknown })._activeTask = "mock-task";
       session.cancel();
       expect(mockFns.FMTaskCancel).toHaveBeenCalledWith("mock-task");
-      expect(mockFns.FMLanguageModelSessionReset).toHaveBeenCalledWith("mock-session-ptr");
+      expect(mockFns.FMLanguageModelSessionReset).toHaveBeenCalledWith("mock-session-pointer");
     });
   });
 
@@ -165,8 +166,8 @@ describe("LanguageModelSession", () => {
     it("releases the session pointer", () => {
       const session = new LanguageModelSession();
       session.dispose();
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-session-ptr");
-      expect(session._ptr).toBeNull();
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-session-pointer");
+      expect(session._nativeSession).toBeNull();
     });
 
     it("is safe to call twice", () => {
@@ -178,9 +179,9 @@ describe("LanguageModelSession", () => {
   });
 
   describe("cancel", () => {
-    it("does nothing when no active task and ptr is null", () => {
+    it("does nothing when no active task and pointer is null", () => {
       const session = new LanguageModelSession();
-      session.dispose(); // sets _ptr to null
+      session.dispose(); // sets _nativeSession to null
       session.cancel();
       expect(mockFns.FMTaskCancel).not.toHaveBeenCalled();
       expect(mockFns.FMLanguageModelSessionReset).not.toHaveBeenCalled();
@@ -190,7 +191,7 @@ describe("LanguageModelSession", () => {
       const session = new LanguageModelSession();
       session.cancel();
       expect(mockFns.FMTaskCancel).not.toHaveBeenCalled();
-      expect(mockFns.FMLanguageModelSessionReset).toHaveBeenCalledWith("mock-session-ptr");
+      expect(mockFns.FMLanguageModelSessionReset).toHaveBeenCalledWith("mock-session-pointer");
     });
   });
 
@@ -201,15 +202,15 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, "mock-content-ref", null);
         }, 15000);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
-      const mockSchema = { _ptr: "mock-schema-ptr" };
+      const mockSchema = { _nativeSchema: "mock-schema-pointer" };
       const promise = session.respondWithSchema("Describe", mockSchema as never);
       await vi.advanceTimersByTimeAsync(15000);
       const result = await promise;
-      expect(result._ptr).toBe("mock-content-ref");
+      expect(result._nativeContent).toBe("mock-content-ref");
       vi.useRealTimers();
     });
 
@@ -218,14 +219,14 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, "mock-content-ref", null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
-      const mockSchema = { _ptr: "mock-schema-ptr" };
+      const mockSchema = { _nativeSchema: "mock-schema-pointer" };
       const result = await session.respondWithSchema("Describe", mockSchema as never);
       expect(result).toBeDefined();
-      expect(result._ptr).toBe("mock-content-ref");
+      expect(result._nativeContent).toBe("mock-content-ref");
     });
 
     it("rejects with error on non-zero status", async () => {
@@ -233,11 +234,11 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(3, "mock-content-ref", null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
-      const mockSchema = { _ptr: "mock-schema-ptr" };
+      const mockSchema = { _nativeSchema: "mock-schema-pointer" };
       await expect(session.respondWithSchema("Describe", mockSchema as never)).rejects.toThrow(
         "Guardrail violation",
       );
@@ -250,22 +251,22 @@ describe("LanguageModelSession", () => {
         setTimeout(() => {
           lastRegisteredCallback?.(0, "mock-content-ref", null);
         }, 0);
-        return "mock-task-ptr";
+        return "mock-task-pointer";
       });
 
       const session = new LanguageModelSession();
-      const mockSchema = { _ptr: "mock-schema-ptr" };
+      const mockSchema = { _nativeSchema: "mock-schema-pointer" };
       await session.respondWithSchema("Describe", mockSchema as never, {
         options: { temperature: 0.5 },
       });
 
       expect(mockFns.FMLanguageModelSessionRespondWithSchema).toHaveBeenCalledWith(
-        "mock-session-ptr",
+        "mock-session-pointer",
         "Describe",
-        "mock-schema-ptr",
+        "mock-schema-pointer",
         JSON.stringify({ temperature: 0.5 }),
         null,
-        "mock-cb-ptr",
+        "mock-cb-pointer",
       );
     });
   });
@@ -277,7 +278,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -291,16 +292,16 @@ describe("LanguageModelSession", () => {
       };
       const result = await session.respondWithJsonSchema("Extract info", jsonSchema);
       expect(result).toBeDefined();
-      expect(result._ptr).toBe("mock-content-ref");
+      expect(result._nativeContent).toBe("mock-content-ref");
     });
 
-    it("applies _toAppleSchemaFormat transformations", async () => {
+    it("applies afmSchemaFormat transformations", async () => {
       mockFns.FMLanguageModelSessionRespondWithSchemaFromJSON.mockImplementation(
         (..._args: unknown[]) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -328,7 +329,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -349,7 +350,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -376,7 +377,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(7, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -393,7 +394,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(3, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -409,7 +410,7 @@ describe("LanguageModelSession", () => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "mock-content-ref", null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -421,12 +422,12 @@ describe("LanguageModelSession", () => {
       );
 
       expect(mockFns.FMLanguageModelSessionRespondWithSchemaFromJSON).toHaveBeenCalledWith(
-        "mock-session-ptr",
+        "mock-session-pointer",
         "Extract",
         expect.any(String),
         JSON.stringify({ maximum_response_tokens: 100 }),
         null,
-        "mock-cb-ptr",
+        "mock-cb-pointer",
       );
     });
   });
@@ -435,7 +436,7 @@ describe("LanguageModelSession", () => {
     it("keepalive interval fires while waiting for stream chunks", async () => {
       vi.useFakeTimers();
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "chunk", 5, null);
             setTimeout(() => {
@@ -462,7 +463,7 @@ describe("LanguageModelSession", () => {
     it("drains pre-queued items without awaiting", async () => {
       // Push items synchronously so the queue is non-empty before the generator awaits
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           lastRegisteredCallback?.(0, "sync chunk", 10, null);
           lastRegisteredCallback?.(0, null, 0, null);
         },
@@ -478,7 +479,7 @@ describe("LanguageModelSession", () => {
 
     it("skips empty deltas from duplicate cumulative content", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "Hello", 5, null);
             setTimeout(() => {
@@ -506,7 +507,7 @@ describe("LanguageModelSession", () => {
 
     it("yields delta strings from cumulative snapshots", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "Hello", 5, null);
             setTimeout(() => {
@@ -529,7 +530,7 @@ describe("LanguageModelSession", () => {
 
     it("throws on error status during streaming", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "partial", 7, null);
             setTimeout(() => {
@@ -554,7 +555,7 @@ describe("LanguageModelSession", () => {
 
     it("releases stream ref after completion", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, "done", 4, null);
             setTimeout(() => {
@@ -569,12 +570,12 @@ describe("LanguageModelSession", () => {
       for await (const chunk of session.streamResponse("Hi")) {
         chunks.push(chunk);
       }
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-stream-ptr");
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-stream-pointer");
     });
 
     it("passes options to FMLanguageModelSessionStreamResponse", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, null, 0, null);
           }, 0);
@@ -589,7 +590,7 @@ describe("LanguageModelSession", () => {
         // drain
       }
       expect(mockFns.FMLanguageModelSessionStreamResponse).toHaveBeenCalledWith(
-        "mock-session-ptr",
+        "mock-session-pointer",
         "Hi",
         JSON.stringify({ temperature: 0.8 }),
       );
@@ -597,7 +598,7 @@ describe("LanguageModelSession", () => {
 
     it("unregisters callback when consumer breaks early (stream not done)", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           // Send a single chunk, then stop — never send the null end-of-stream signal
           setTimeout(() => {
             lastRegisteredCallback?.(0, "Hello", 5, null);
@@ -605,7 +606,6 @@ describe("LanguageModelSession", () => {
         },
       );
 
-      const koffiMod = await import("koffi");
       const session = new LanguageModelSession();
       const chunks: string[] = [];
       for await (const chunk of session.streamResponse("Hi")) {
@@ -613,14 +613,15 @@ describe("LanguageModelSession", () => {
         break; // consumer breaks early — streamDone is still false
       }
       expect(chunks).toEqual(["Hello"]);
-      // The finally block should call koffi.unregister because streamDone is false
-      expect(koffiMod.default.unregister).toHaveBeenCalledWith("mock-cb-ptr");
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-stream-ptr");
+      // The finally block should call unregisterCallback because streamDone is false
+      const bindings = await import("../../src/bindings.js");
+      expect(bindings.unregisterCallback).toHaveBeenCalledWith("mock-cb-pointer");
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-stream-pointer");
     });
 
     it("handles empty stream (immediate null content)", async () => {
       mockFns.FMLanguageModelSessionResponseStreamIterate.mockImplementation(
-        (_streamRef: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_streamRef: unknown, _ui: unknown, _cbPointer: unknown) => {
           setTimeout(() => {
             lastRegisteredCallback?.(0, null, 0, null);
           }, 0);
@@ -639,26 +640,26 @@ describe("LanguageModelSession", () => {
   describe("fromTranscript", () => {
     it("creates a session from a transcript", () => {
       const mockTranscript = {
-        _sessionPtr: "mock-transcript-session-ptr",
-        _updateSessionPtr: vi.fn(),
+        _nativeSession: "mock-transcript-session-pointer",
+        _updateNativeSession: vi.fn(),
       };
 
       const session = LanguageModelSession.fromTranscript(mockTranscript as never);
       expect(mockFns.FMLanguageModelSessionCreateFromTranscript).toHaveBeenCalledWith(
-        "mock-transcript-session-ptr",
+        "mock-transcript-session-pointer",
         null,
         null,
         0,
       );
-      expect(session._ptr).toBe("mock-session-ptr");
-      expect(mockTranscript._updateSessionPtr).toHaveBeenCalledWith("mock-session-ptr");
+      expect(session._nativeSession).toBe("mock-session-pointer");
+      expect(mockTranscript._updateNativeSession).toHaveBeenCalledWith("mock-session-pointer");
     });
 
     it("throws when C returns null pointer", () => {
       mockFns.FMLanguageModelSessionCreateFromTranscript.mockReturnValueOnce(null);
       const mockTranscript = {
-        _sessionPtr: "mock-transcript-session-ptr",
-        _updateSessionPtr: vi.fn(),
+        _nativeSession: "mock-transcript-session-pointer",
+        _updateNativeSession: vi.fn(),
       };
 
       expect(() => LanguageModelSession.fromTranscript(mockTranscript as never)).toThrow(
@@ -668,11 +669,11 @@ describe("LanguageModelSession", () => {
 
     it("passes tools when provided", () => {
       const mockTranscript = {
-        _sessionPtr: "mock-transcript-session-ptr",
-        _updateSessionPtr: vi.fn(),
+        _nativeSession: "mock-transcript-session-pointer",
+        _updateNativeSession: vi.fn(),
       };
       const mockTool = {
-        _ptr: "mock-tool-ptr",
+        _nativeTool: "mock-tool-pointer",
         _register: vi.fn(),
       };
 
@@ -687,7 +688,7 @@ describe("LanguageModelSession", () => {
   describe("constructor with tools", () => {
     it("registers tools and passes tool pointers", () => {
       const mockTool = {
-        _ptr: "mock-tool-ptr",
+        _nativeTool: "mock-tool-pointer",
         _register: vi.fn(),
       };
 
@@ -701,13 +702,13 @@ describe("LanguageModelSession", () => {
       const callOrder: number[] = [];
 
       mockFns.FMLanguageModelSessionRespond.mockImplementation(
-        (_ptr: unknown, prompt: unknown, _opts: unknown, _ui: unknown, _cbPtr: unknown) => {
+        (_pointer: unknown, prompt: unknown, _opts: unknown, _ui: unknown, _cbPointer: unknown) => {
           const idx = prompt === "first" ? 1 : 2;
           callOrder.push(idx);
           setTimeout(() => {
             lastRegisteredCallback?.(0, `Response ${idx}`, 10, null);
           }, 0);
-          return "mock-task-ptr";
+          return "mock-task-pointer";
         },
       );
 
@@ -724,8 +725,8 @@ describe("LanguageModelSession", () => {
     it("releases pointer when GC callback fires", () => {
       const cleanup = capturedSessionRegistryCallback();
       expect(cleanup).toBeTypeOf("function");
-      cleanup!("leaked-session-ptr");
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("leaked-session-ptr");
+      cleanup!("leaked-session-pointer");
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("leaked-session-pointer");
     });
 
     it("swallows errors in GC callback", () => {
@@ -733,7 +734,7 @@ describe("LanguageModelSession", () => {
         throw new Error("already released");
       });
       const cleanup = capturedSessionRegistryCallback();
-      expect(() => cleanup!("bad-ptr")).not.toThrow();
+      expect(() => cleanup!("bad-pointer")).not.toThrow();
     });
   });
 });

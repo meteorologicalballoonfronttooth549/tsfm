@@ -1,6 +1,6 @@
 {
   "name": "afm-ts-sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unofficial TypeScript bindings for Apple's Foundation Models framework (Apple Intelligence on-device LLM)",
   "license": "Apache-2.0",
   "type": "module",
@@ -23,7 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run --config tests/integration/vitest.config.ts"
   },
   "files": [
     "dist/",

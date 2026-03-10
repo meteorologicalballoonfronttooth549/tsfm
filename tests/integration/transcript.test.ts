@@ -18,7 +18,7 @@ describeIfAvailable("transcript (integration)", () => {
     expect(parsed).toHaveProperty("type");
 
     const restored = Transcript.fromJson(json);
-    expect(restored._sessionPtr).toBeTruthy();
+    expect(restored._nativeSession).toBeTruthy();
     session.dispose();
   }, 30_000);
 

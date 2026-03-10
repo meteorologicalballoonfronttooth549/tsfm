@@ -213,15 +213,33 @@ export function getFunctions() {
  * that occurs when koffi's 'str' return type copies the string but discards
  * the original pointer before we can free it.
  */
-export function decodeAndFreeString(ptr: unknown): string | null {
-  if (!ptr) return null;
-  // 'char *' would treat ptr as char** (pointer-to-pointer) and segfault.
-  // 'char' with -1 reads the null-terminated byte sequence at ptr directly.
+/**
+ * Branded type for opaque C pointers returned by koffi FFI calls.
+ * Prevents accidentally mixing native handles with other values.
+ */
+declare const _nativePointer: unique symbol;
+export type NativePointer = { readonly [_nativePointer]: never };
+
+/** The type of a koffi callback proto created by `koffi.proto()`. */
+export type CallbackProto = typeof ResponseCallbackProto;
+
+/** The type returned by `koffi.register()` — a handle to a native callback. */
+export type KoffiCallback = ReturnType<typeof koffi.register>;
+
+/** Unregister a koffi callback. */
+export function unregisterCallback(callback: KoffiCallback): void {
+  koffi.unregister(callback);
+}
+
+export function decodeAndFreeString(pointer: NativePointer | null): string | null {
+  if (!pointer) return null;
+  // 'char *' would treat pointer as char** (pointer-to-pointer) and segfault.
+  // 'char' with -1 reads the null-terminated byte sequence at pointer directly.
   // koffi may return a string or an array of char codes depending on version;
   // we handle both and re-encode via TextDecoder to preserve UTF-8.
-  const raw = koffi.decode(ptr, "char", -1);
-  getFunctions().FMFreeString(ptr);
+  const raw = koffi.decode(pointer, "char", -1);
+  getFunctions().FMFreeString(pointer);
   if (typeof raw === "string") return raw;
-  const codes = raw as number[];
+  const codes: number[] = raw;
   return new TextDecoder("utf-8").decode(new Uint8Array(codes.map((c) => c & 0xff)));
 }

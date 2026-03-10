@@ -3,8 +3,8 @@ import { createMockFunctions } from "./helpers/mock-bindings.js";
 
 const mockFns = createMockFunctions();
 const { mockDecodeAndFreeString } = vi.hoisted(() => ({
-  mockDecodeAndFreeString: vi.fn((ptr: unknown) => {
-    if (!ptr) return null;
+  mockDecodeAndFreeString: vi.fn((pointer: unknown) => {
+    if (!pointer) return null;
     return '{"type":"transcript","entries":[]}';
   }),
 }));
@@ -15,11 +15,14 @@ vi.mock("../../src/bindings.js", () => ({
 }));
 
 import { Transcript } from "../../src/transcript.js";
+import type { NativePointer } from "../../src/bindings.js";
+
+const mockPointer = (label: string) => label as unknown as NativePointer;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockDecodeAndFreeString.mockImplementation((ptr: unknown) => {
-    if (!ptr) return null;
+  mockDecodeAndFreeString.mockImplementation((pointer: unknown) => {
+    if (!pointer) return null;
     return '{"type":"transcript","entries":[]}';
   });
 });
@@ -27,11 +30,11 @@ beforeEach(() => {
 describe("Transcript", () => {
   describe("toJson", () => {
     it("returns JSON string from C API", () => {
-      const transcript = new Transcript("mock-session-ptr");
+      const transcript = new Transcript(mockPointer("mock-session"));
       const json = transcript.toJson();
       expect(json).toBe('{"type":"transcript","entries":[]}');
       expect(mockFns.FMLanguageModelSessionGetTranscriptJSONString).toHaveBeenCalledWith(
-        "mock-session-ptr",
+        "mock-session",
         null,
         null,
       );
@@ -39,14 +42,14 @@ describe("Transcript", () => {
 
     it("throws when C API returns null", () => {
       mockDecodeAndFreeString.mockReturnValueOnce(null);
-      const transcript = new Transcript("mock-session-ptr");
+      const transcript = new Transcript(mockPointer("mock-session"));
       expect(() => transcript.toJson()).toThrow("Failed to export transcript");
     });
   });
 
   describe("toDict", () => {
     it("returns parsed JSON object", () => {
-      const transcript = new Transcript("mock-session-ptr");
+      const transcript = new Transcript(mockPointer("mock-session"));
       const dict = transcript.toDict();
       expect(dict).toEqual({ type: "transcript", entries: [] });
     });
@@ -60,7 +63,7 @@ describe("Transcript", () => {
         expect.any(Array),
         null,
       );
-      expect(transcript._sessionPtr).toBe("mock-transcript-ptr");
+      expect(transcript._nativeSession).toBe("mock-transcript-pointer");
     });
 
     it("throws when C returns null pointer", () => {
@@ -78,15 +81,15 @@ describe("Transcript", () => {
         expect.any(Array),
         null,
       );
-      expect(transcript._sessionPtr).toBe("mock-transcript-ptr");
+      expect(transcript._nativeSession).toBe("mock-transcript-pointer");
     });
   });
 
-  describe("_updateSessionPtr", () => {
+  describe("_updateNativeSession", () => {
     it("updates the internal session pointer", () => {
-      const transcript = new Transcript("old-ptr");
-      transcript._updateSessionPtr("new-ptr");
-      expect(transcript._sessionPtr).toBe("new-ptr");
+      const transcript = new Transcript(mockPointer("old-session"));
+      transcript._updateNativeSession(mockPointer("new-session"));
+      expect(transcript._nativeSession).toBe("new-session");
     });
   });
 });

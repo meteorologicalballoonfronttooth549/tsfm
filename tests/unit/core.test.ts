@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockFunctions } from "./helpers/mock-bindings.js";
 
 const { capturedRegistryCallback } = vi.hoisted(() => {
-  let cb: ((ptr: unknown) => void) | null = null;
+  let cb: ((pointer: unknown) => void) | null = null;
   const OriginalFR = globalThis.FinalizationRegistry;
   globalThis.FinalizationRegistry = class MockFinalizationRegistry {
-    constructor(callback: (ptr: unknown) => void) {
+    constructor(callback: (pointer: unknown) => void) {
       cb = callback;
     }
     register() {}
@@ -41,7 +41,7 @@ describe("SystemLanguageModel", () => {
       SystemLanguageModelUseCase.GENERAL,
       SystemLanguageModelGuardrails.DEFAULT,
     );
-    expect(model._ptr).toBe("mock-model-ptr");
+    expect(model._nativeModel).toBe("mock-model-pointer");
   });
 
   it("creates with custom use case and guardrails", () => {
@@ -66,7 +66,7 @@ describe("SystemLanguageModel", () => {
 
     it("returns available: false with reason when C reports unavailable", () => {
       mockFns.FMSystemLanguageModelIsAvailable.mockImplementationOnce(
-        (_ptr: unknown, reasonOut: number[]) => {
+        (_pointer: unknown, reasonOut: number[]) => {
           reasonOut[0] = SystemLanguageModelUnavailableReason.DEVICE_NOT_ELIGIBLE;
           return false;
         },
@@ -79,7 +79,7 @@ describe("SystemLanguageModel", () => {
 
     it("returns UNKNOWN for unrecognized reason codes", () => {
       mockFns.FMSystemLanguageModelIsAvailable.mockImplementationOnce(
-        (_ptr: unknown, reasonOut: number[]) => {
+        (_pointer: unknown, reasonOut: number[]) => {
           reasonOut[0] = 999;
           return false;
         },
@@ -99,7 +99,7 @@ describe("SystemLanguageModel", () => {
 
     it("returns immediately for non-transient failures", async () => {
       mockFns.FMSystemLanguageModelIsAvailable.mockImplementation(
-        (_ptr: unknown, reasonOut: number[]) => {
+        (_pointer: unknown, reasonOut: number[]) => {
           reasonOut[0] = SystemLanguageModelUnavailableReason.DEVICE_NOT_ELIGIBLE;
           return false;
         },
@@ -112,7 +112,7 @@ describe("SystemLanguageModel", () => {
 
     it("times out when MODEL_NOT_READY persists past deadline", async () => {
       mockFns.FMSystemLanguageModelIsAvailable.mockImplementation(
-        (_ptr: unknown, reasonOut: number[]) => {
+        (_pointer: unknown, reasonOut: number[]) => {
           reasonOut[0] = SystemLanguageModelUnavailableReason.MODEL_NOT_READY;
           return false;
         },
@@ -126,7 +126,7 @@ describe("SystemLanguageModel", () => {
     it("retries on MODEL_NOT_READY then succeeds", async () => {
       let callCount = 0;
       mockFns.FMSystemLanguageModelIsAvailable.mockImplementation(
-        (_ptr: unknown, reasonOut: number[]) => {
+        (_pointer: unknown, reasonOut: number[]) => {
           callCount++;
           if (callCount < 3) {
             reasonOut[0] = SystemLanguageModelUnavailableReason.MODEL_NOT_READY;
@@ -147,8 +147,8 @@ describe("SystemLanguageModel", () => {
     it("releases pointer when GC callback fires", () => {
       const cleanup = capturedRegistryCallback();
       expect(cleanup).toBeTypeOf("function");
-      cleanup!("leaked-model-ptr");
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("leaked-model-ptr");
+      cleanup!("leaked-model-pointer");
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("leaked-model-pointer");
     });
 
     it("swallows errors in GC callback", () => {
@@ -157,7 +157,7 @@ describe("SystemLanguageModel", () => {
       });
       const cleanup = capturedRegistryCallback();
       // Should not throw
-      expect(() => cleanup!("bad-ptr")).not.toThrow();
+      expect(() => cleanup!("bad-pointer")).not.toThrow();
     });
   });
 
@@ -165,8 +165,8 @@ describe("SystemLanguageModel", () => {
     it("releases the C pointer", () => {
       const model = new SystemLanguageModel();
       model.dispose();
-      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-model-ptr");
-      expect(model._ptr).toBeNull();
+      expect(mockFns.FMRelease).toHaveBeenCalledWith("mock-model-pointer");
+      expect(model._nativeModel).toBeNull();
     });
 
     it("is safe to call twice", () => {

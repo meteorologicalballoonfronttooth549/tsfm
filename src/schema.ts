@@ -5,7 +5,7 @@
  * This mirrors the Python SDK's GenerationSchema / GenerationSchemaProperty / GenerationGuide.
  */
 
-import { getFunctions, decodeAndFreeString } from "./bindings.js";
+import { getFunctions, decodeAndFreeString, type NativePointer } from "./bindings.js";
 import { statusToError } from "./errors.js";
 
 export type PropertyType = "string" | "integer" | "number" | "boolean" | "array" | "object";
@@ -31,107 +31,122 @@ export enum GuideType {
 // GenerationGuide — mirrors Python's GenerationGuide class
 // ---------------------------------------------------------------------------
 
-export class GenerationGuide {
-  private readonly guideType: GuideType;
-  private readonly value: unknown;
+type GuideData =
+  | { type: GuideType.ANY_OF; value: string[] }
+  | { type: GuideType.CONSTANT; value: string }
+  | { type: GuideType.COUNT; value: number }
+  | { type: GuideType.ELEMENT; value: GenerationGuide }
+  | { type: GuideType.MAX_ITEMS; value: number }
+  | { type: GuideType.MAXIMUM; value: number }
+  | { type: GuideType.MIN_ITEMS; value: number }
+  | { type: GuideType.MINIMUM; value: number }
+  | { type: GuideType.RANGE; value: [number, number] }
+  | { type: GuideType.REGEX; value: string };
 
-  private constructor(guideType: GuideType, value: unknown) {
-    this.guideType = guideType;
-    this.value = value;
+export class GenerationGuide {
+  private readonly data: GuideData;
+
+  private constructor(data: GuideData) {
+    this.data = data;
   }
 
   /** Constrain output to one of the given string values. */
   static anyOf(values: string[]): GenerationGuide {
-    return new GenerationGuide(GuideType.ANY_OF, values);
+    return new GenerationGuide({ type: GuideType.ANY_OF, value: values });
   }
 
   /** Constrain output to exactly this string value. */
   static constant(value: string): GenerationGuide {
-    return new GenerationGuide(GuideType.CONSTANT, value);
+    return new GenerationGuide({ type: GuideType.CONSTANT, value });
   }
 
   /** Require exactly `count` items in an array. */
   static count(count: number): GenerationGuide {
-    return new GenerationGuide(GuideType.COUNT, count);
+    return new GenerationGuide({ type: GuideType.COUNT, value: count });
   }
 
   /** Apply a guide to each element of an array. */
   static element(guide: GenerationGuide): GenerationGuide {
-    return new GenerationGuide(GuideType.ELEMENT, guide);
+    return new GenerationGuide({ type: GuideType.ELEMENT, value: guide });
   }
 
   /** Maximum number of items in an array. */
   static maxItems(value: number): GenerationGuide {
-    return new GenerationGuide(GuideType.MAX_ITEMS, value);
+    return new GenerationGuide({ type: GuideType.MAX_ITEMS, value });
   }
 
   /** Maximum numeric value. */
   static maximum(value: number): GenerationGuide {
-    return new GenerationGuide(GuideType.MAXIMUM, value);
+    return new GenerationGuide({ type: GuideType.MAXIMUM, value });
   }
 
   /** Minimum number of items in an array. */
   static minItems(value: number): GenerationGuide {
-    return new GenerationGuide(GuideType.MIN_ITEMS, value);
+    return new GenerationGuide({ type: GuideType.MIN_ITEMS, value });
   }
 
   /** Minimum numeric value. */
   static minimum(value: number): GenerationGuide {
-    return new GenerationGuide(GuideType.MINIMUM, value);
+    return new GenerationGuide({ type: GuideType.MINIMUM, value });
   }
 
   /** Constrain numeric value to [min, max]. */
   static range(min: number, max: number): GenerationGuide {
-    return new GenerationGuide(GuideType.RANGE, [min, max]);
+    return new GenerationGuide({ type: GuideType.RANGE, value: [min, max] });
   }
 
   /** Constrain string to match a regex pattern. */
   static regex(pattern: string): GenerationGuide {
-    return new GenerationGuide(GuideType.REGEX, pattern);
+    return new GenerationGuide({ type: GuideType.REGEX, value: pattern });
   }
 
   /** @internal Apply this guide to a C property pointer. */
-  _applyToProperty(propPtr: unknown, wrapped = false): void {
+  _applyToProperty(propertyPointer: NativePointer, wrapped = false): void {
     const fn = getFunctions();
-    const guideType = this.guideType;
-    const value = this.value;
+    const { type, value } = this.data;
 
-    // Unwrap element guide
-    if (guideType === GuideType.ELEMENT) {
-      const inner = value as GenerationGuide;
-      inner._applyToProperty(propPtr, true);
+    if (type === GuideType.ELEMENT) {
+      value._applyToProperty(propertyPointer, true);
       return;
     }
 
-    switch (guideType) {
-      case GuideType.ANY_OF:
+    switch (type) {
+      case GuideType.ANY_OF: {
+        fn.FMGenerationSchemaPropertyAddAnyOfGuide(propertyPointer, value, value.length, wrapped);
+        break;
+      }
       case GuideType.CONSTANT: {
-        const choices = guideType === GuideType.CONSTANT ? [value as string] : (value as string[]);
-        fn.FMGenerationSchemaPropertyAddAnyOfGuide(propPtr, choices, choices.length, wrapped);
+        const choices = [value];
+        fn.FMGenerationSchemaPropertyAddAnyOfGuide(
+          propertyPointer,
+          choices,
+          choices.length,
+          wrapped,
+        );
         break;
       }
       case GuideType.COUNT:
-        fn.FMGenerationSchemaPropertyAddCountGuide(propPtr, value as number, wrapped);
+        fn.FMGenerationSchemaPropertyAddCountGuide(propertyPointer, value, wrapped);
         break;
       case GuideType.MAX_ITEMS:
-        fn.FMGenerationSchemaPropertyAddMaxItemsGuide(propPtr, value as number);
+        fn.FMGenerationSchemaPropertyAddMaxItemsGuide(propertyPointer, value);
         break;
       case GuideType.MAXIMUM:
-        fn.FMGenerationSchemaPropertyAddMaximumGuide(propPtr, value as number, wrapped);
+        fn.FMGenerationSchemaPropertyAddMaximumGuide(propertyPointer, value, wrapped);
         break;
       case GuideType.MIN_ITEMS:
-        fn.FMGenerationSchemaPropertyAddMinItemsGuide(propPtr, value as number);
+        fn.FMGenerationSchemaPropertyAddMinItemsGuide(propertyPointer, value);
         break;
       case GuideType.MINIMUM:
-        fn.FMGenerationSchemaPropertyAddMinimumGuide(propPtr, value as number, wrapped);
+        fn.FMGenerationSchemaPropertyAddMinimumGuide(propertyPointer, value, wrapped);
         break;
       case GuideType.RANGE: {
-        const [min, max] = value as [number, number];
-        fn.FMGenerationSchemaPropertyAddRangeGuide(propPtr, min, max, wrapped);
+        const [min, max] = value;
+        fn.FMGenerationSchemaPropertyAddRangeGuide(propertyPointer, min, max, wrapped);
         break;
       }
       case GuideType.REGEX:
-        fn.FMGenerationSchemaPropertyAddRegex(propPtr, value as string, wrapped);
+        fn.FMGenerationSchemaPropertyAddRegex(propertyPointer, value, wrapped);
         break;
     }
   }
@@ -143,7 +158,7 @@ export class GenerationGuide {
 
 export class GenerationSchemaProperty {
   /** @internal */
-  _ptr: unknown;
+  _nativeProperty: NativePointer;
 
   constructor(
     name: string,
@@ -155,7 +170,7 @@ export class GenerationSchemaProperty {
     } = {},
   ) {
     const fn = getFunctions();
-    this._ptr = fn.FMGenerationSchemaPropertyCreate(
+    this._nativeProperty = fn.FMGenerationSchemaPropertyCreate(
       name,
       opts.description ?? null,
       type,
@@ -163,7 +178,7 @@ export class GenerationSchemaProperty {
     );
 
     for (const guide of opts.guides ?? []) {
-      guide._applyToProperty(this._ptr);
+      guide._applyToProperty(this._nativeProperty);
     }
   }
 }
@@ -174,20 +189,20 @@ export class GenerationSchemaProperty {
 
 export class GenerationSchema {
   /** @internal */
-  _ptr: unknown;
+  _nativeSchema: NativePointer;
 
   constructor(name: string, description?: string) {
     const fn = getFunctions();
-    this._ptr = fn.FMGenerationSchemaCreate(name, description ?? null);
+    this._nativeSchema = fn.FMGenerationSchemaCreate(name, description ?? null);
   }
 
   addProperty(property: GenerationSchemaProperty): this {
-    getFunctions().FMGenerationSchemaAddProperty(this._ptr, property._ptr);
+    getFunctions().FMGenerationSchemaAddProperty(this._nativeSchema, property._nativeProperty);
     return this;
   }
 
   addReferenceSchema(schema: GenerationSchema): this {
-    getFunctions().FMGenerationSchemaAddReferenceSchema(this._ptr, schema._ptr);
+    getFunctions().FMGenerationSchemaAddReferenceSchema(this._nativeSchema, schema._nativeSchema);
     return this;
   }
 
@@ -208,11 +223,45 @@ export class GenerationSchema {
   /** Serialize the schema to a plain object (mirrors Python's GenerationSchema.to_dict()). */
   toDict(): Record<string, unknown> {
     const errorCode = [0];
-    const ptr = getFunctions().FMGenerationSchemaGetJSONString(this._ptr, errorCode, null);
-    const json = decodeAndFreeString(ptr);
+    const pointer = getFunctions().FMGenerationSchemaGetJSONString(
+      this._nativeSchema,
+      errorCode,
+      null,
+    );
+    const json = decodeAndFreeString(pointer);
     if (!json) throw statusToError(errorCode[0], "Failed to serialize GenerationSchema");
-    return JSON.parse(json) as Record<string, unknown>;
+    return JSON.parse(json);
   }
+}
+
+// ---------------------------------------------------------------------------
+// JSON Schema normalization for Apple's Foundation Models C API
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize a plain JSON Schema object to the format required by Apple's
+ * Foundation Models C API.
+ *
+ * Three fields are injected if not already present:
+ * - `title` — required by the C API; defaults to `"Schema"` (an arbitrary
+ *   placeholder; the value has no semantic effect on generation).
+ * - `additionalProperties: false` — required for strict schema conformance.
+ * - `x-order` — an array of property names that controls generation order;
+ *   derived from `Object.keys(properties)` when omitted.
+ *
+ * @internal
+ */
+export function afmSchemaFormat(schema: Record<string, unknown>): Record<string, unknown> {
+  const properties = schema.properties;
+  const propertyOrder =
+    schema["x-order"] ??
+    (properties && typeof properties === "object" ? Object.keys(properties) : []);
+  return {
+    title: "Schema",
+    additionalProperties: false,
+    ...schema,
+    "x-order": propertyOrder,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -224,32 +273,32 @@ export class GenerationSchema {
  */
 export class GeneratedContent {
   /** @internal */
-  _ptr: unknown;
+  _nativeContent: NativePointer;
 
   private _parsed: Record<string, unknown> | null = null;
 
   /** @internal */
-  constructor(ptr: unknown) {
-    this._ptr = ptr;
+  constructor(pointer: NativePointer) {
+    this._nativeContent = pointer;
   }
 
   /** Create GeneratedContent from a JSON string (mirrors Python's GeneratedContent.from_json()). */
   static fromJson(jsonString: string): GeneratedContent {
     const fn = getFunctions();
     const errorCode = [0];
-    const ptr = fn.FMGeneratedContentCreateFromJSON(jsonString, errorCode, null);
-    if (!ptr) throw statusToError(errorCode[0], "Failed to create GeneratedContent from JSON");
-    return new GeneratedContent(ptr);
+    const pointer = fn.FMGeneratedContentCreateFromJSON(jsonString, errorCode, null);
+    if (!pointer) throw statusToError(errorCode[0], "Failed to create GeneratedContent from JSON");
+    return new GeneratedContent(pointer);
   }
 
   get isComplete(): boolean {
-    return getFunctions().FMGeneratedContentIsComplete(this._ptr) as boolean;
+    return getFunctions().FMGeneratedContentIsComplete(this._nativeContent);
   }
 
   /** Returns the raw JSON string of the generated content. */
   toJson(): string {
-    const ptr = getFunctions().FMGeneratedContentGetJSONString(this._ptr);
-    return decodeAndFreeString(ptr) ?? "{}";
+    const pointer = getFunctions().FMGeneratedContentGetJSONString(this._nativeContent);
+    return decodeAndFreeString(pointer) ?? "{}";
   }
 
   /** Returns the parsed JSON object. */
@@ -260,18 +309,31 @@ export class GeneratedContent {
     return this._parsed!;
   }
 
-  /** Returns the value of a specific property. */
+  /**
+   * Returns the value of a named property, parsed from JSON.
+   *
+   * Tries the C API's per-property accessor first; falls back to parsing the
+   * full JSON object when the C API returns null.
+   *
+   * **Type safety note:** when the C API returns a non-JSON string for a
+   * property (rare), `JSON.parse` fails and the raw string is returned cast
+   * to `T`. The actual runtime value may be a `string` even when `T` is a
+   * different type. If type fidelity matters, use `toObject()` and access the
+   * property directly.
+   *
+   * Throws if the property is not found by either path.
+   */
   value<T = unknown>(propertyName: string): T {
-    const ptr = getFunctions().FMGeneratedContentGetPropertyValue(
-      this._ptr,
+    const pointer = getFunctions().FMGeneratedContentGetPropertyValue(
+      this._nativeContent,
       propertyName,
       null,
       null,
     );
-    const raw = decodeAndFreeString(ptr);
+    const raw = decodeAndFreeString(pointer);
     if (raw !== null) {
       try {
-        return JSON.parse(raw) as T;
+        return JSON.parse(raw);
       } catch {
         return raw as unknown as T;
       }

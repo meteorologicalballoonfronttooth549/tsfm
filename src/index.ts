@@ -8,7 +8,15 @@ export {
 
 export { LanguageModelSession } from "./session.js";
 
-export { Transcript } from "./transcript.js";
+export {
+  Transcript,
+  type TranscriptEntry,
+  type TranscriptContent,
+  type TranscriptTextContent,
+  type TranscriptStructuredContent,
+  type TranscriptToolCall,
+  type TranscriptEntryRole,
+} from "./transcript.js";
 
 export {
   GenerationSchema,
@@ -17,6 +25,8 @@ export {
   GuideType,
   GeneratedContent,
   type PropertyType,
+  type JsonSchema,
+  type JsonObject,
 } from "./schema.js";
 
 export { SamplingMode, type SamplingModeType, type GenerationOptions } from "./options.js";
@@ -37,5 +47,6 @@ export {
   ConcurrentRequestsError,
   RefusalError,
   InvalidGenerationSchemaError,
+  ServiceCrashedError,
   ToolCallError,
 } from "./errors.js";

@@ -11,10 +11,13 @@ import {
 } from "./bindings.js";
 import { SystemLanguageModel } from "./core.js";
 import { Tool } from "./tool.js";
-import { GenerationSchema, GeneratedContent, afmSchemaFormat } from "./schema.js";
+import { GenerationSchema, GeneratedContent, afmSchemaFormat, type JsonSchema } from "./schema.js";
 import { GenerationOptions, serializeOptions } from "./options.js";
 import { statusToError, FoundationModelsError } from "./errors.js";
 import { Transcript } from "./transcript.js";
+
+/** Sentinel object passed to the constructor to skip the C API call. */
+const _FROM_POINTER = Symbol("fromPointer");
 
 const _sessionRegistry = new FinalizationRegistry((pointer: NativePointer) => {
   try {
@@ -22,25 +25,76 @@ const _sessionRegistry = new FinalizationRegistry((pointer: NativePointer) => {
   } catch {}
 });
 
+// Track live sessions so we can release them when the process exits.
+// Orphaned native sessions can crash the Apple Intelligence safety service.
+// Uses WeakRef so forgotten sessions can still be garbage-collected.
+const _liveSessions = new Set<WeakRef<LanguageModelSession>>();
+
+function _cleanupAllSessions(): void {
+  for (const ref of _liveSessions) {
+    try {
+      ref.deref()?.dispose();
+    } catch {}
+  }
+  _liveSessions.clear();
+}
+
+let _exitHandlerInstalled = false;
+function _installExitHandler(): void {
+  if (_exitHandlerInstalled) return;
+  _exitHandlerInstalled = true;
+  process.on("exit", _cleanupAllSessions);
+  // SIGINT (Ctrl+C) and SIGTERM (kill) don't trigger "exit" by default.
+  // Clean up native sessions, then re-raise the signal so the process
+  // terminates with the correct exit code / signal disposition.
+  // Use `once` so the handler removes itself before re-raising, avoiding a loop.
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      _cleanupAllSessions();
+      process.kill(process.pid, signal);
+    });
+  }
+}
+
 type ResponseCbArgs = [status: number, content: string, _length: number, userInfo: unknown];
 type StructuredCbArgs = [status: number, contentRef: NativePointer, userInfo: unknown];
 
 export class LanguageModelSession {
   /** @internal */
-  _nativeSession: NativePointer | null;
+  _nativeSession: NativePointer | null = null;
 
-  transcript: Transcript;
+  private _transcript: Transcript | null = null;
+  private _weakRef: WeakRef<LanguageModelSession> | null = null;
+
+  get transcript(): Transcript {
+    if (!this._transcript) throw new FoundationModelsError("Session not initialized");
+    return this._transcript;
+  }
 
   private _activeTask: NativePointer | null = null;
   private _queue = Promise.resolve();
 
+  /** Shared initialization for both constructor and fromTranscript. */
+  private _init(pointer: NativePointer, transcript: Transcript): void {
+    this._nativeSession = pointer;
+    this._transcript = transcript;
+    _sessionRegistry.register(this, pointer, this);
+    this._weakRef = new WeakRef(this);
+    _liveSessions.add(this._weakRef);
+    _installExitHandler();
+  }
+
   constructor(
-    opts: {
-      instructions?: string;
-      model?: SystemLanguageModel;
-      tools?: Tool[];
-    } = {},
+    opts:
+      | {
+          instructions?: string;
+          model?: SystemLanguageModel;
+          tools?: Tool[];
+        }
+      | typeof _FROM_POINTER = {},
   ) {
+    if (opts === _FROM_POINTER) return; // shell instance — _init() called by fromTranscript
+
     const fn = getFunctions();
     const tools = opts.tools ?? [];
     tools.forEach((t) => t._register());
@@ -48,17 +102,15 @@ export class LanguageModelSession {
     const toolPointers = tools.map((t) => t._nativeTool);
     const toolPointersArg = tools.length > 0 ? koffi.as(toolPointers, "void **") : null;
 
-    this._nativeSession = fn.FMLanguageModelSessionCreateFromSystemLanguageModel(
+    const pointer = fn.FMLanguageModelSessionCreateFromSystemLanguageModel(
       opts.model?._nativeModel ?? null,
       opts.instructions ?? null,
       toolPointersArg,
       tools.length,
     );
 
-    if (!this._nativeSession)
-      throw new FoundationModelsError("Failed to create LanguageModelSession");
-    this.transcript = new Transcript(this._nativeSession);
-    _sessionRegistry.register(this, this._nativeSession, this);
+    if (!pointer) throw new FoundationModelsError("Failed to create LanguageModelSession");
+    this._init(pointer, new Transcript(pointer));
   }
 
   /**
@@ -87,20 +139,11 @@ export class LanguageModelSession {
 
     if (!pointer) throw new FoundationModelsError("Failed to create session from transcript");
 
-    // Object.create bypasses the constructor, which always calls
-    // FMLanguageModelSessionCreateFromSystemLanguageModel. fromTranscript needs
-    // FMLanguageModelSessionCreateFromTranscript instead, so we allocate the
-    // instance shell manually and assign every field the constructor would set.
-    // If new instance fields are added to the constructor, add them here too.
-    const session: LanguageModelSession = Object.create(LanguageModelSession.prototype);
-    session._nativeSession = pointer;
-    session._activeTask = null;
-    session._queue = Promise.resolve();
-    session.transcript = transcript;
+    const session = new LanguageModelSession(_FROM_POINTER);
+    session._init(pointer, transcript);
     // Update the transcript's native session so future toJson() calls read
     // from the new session rather than the original deserialized transcript.
     transcript._updateNativeSession(pointer);
-    _sessionRegistry.register(session, pointer, session);
     return session;
   }
 
@@ -168,7 +211,7 @@ export class LanguageModelSession {
    */
   async respondWithJsonSchema(
     prompt: string,
-    jsonSchema: Record<string, unknown>,
+    jsonSchema: JsonSchema,
     opts: { options?: GenerationOptions } = {},
   ): Promise<GeneratedContent> {
     return this._enqueue(() => this._respondWithJsonSchema(prompt, jsonSchema, opts.options));
@@ -279,11 +322,19 @@ export class LanguageModelSession {
   }
 
   dispose(): void {
+    if (this._weakRef) {
+      _liveSessions.delete(this._weakRef);
+      this._weakRef = null;
+    }
     if (this._nativeSession) {
       _sessionRegistry.unregister(this);
       getFunctions().FMRelease(this._nativeSession);
       this._nativeSession = null;
     }
+  }
+
+  [Symbol.dispose](): void {
+    this.dispose();
   }
 
   // -------------------------------------------------------------------------
@@ -385,7 +436,7 @@ export class LanguageModelSession {
 
   private _respondWithJsonSchema(
     prompt: string,
-    jsonSchema: Record<string, unknown>,
+    jsonSchema: JsonSchema,
     options: GenerationOptions | undefined,
   ): Promise<GeneratedContent> {
     const fn = getFunctions();

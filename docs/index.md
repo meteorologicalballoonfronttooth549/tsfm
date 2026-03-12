@@ -15,18 +15,28 @@ hero:
     - theme: alt
       text: View on GitHub
       link: https://github.com/codybrom/tsfm
+    
 
 features:
-  - icon: 🔒
-    title: On-Device Inference
-    details: Runs entirely on Apple Silicon. Your data never leaves the machine — no network requests, no API keys.
   - icon: ⚡
-    title: Streaming Generation
-    details: Async iterator interface for token-by-token streaming. Process responses as they're generated.
+    title: Streaming
+    details: "Get responses token-by-token as the model generates them."
+    link: /guide/streaming
+    linkText: Learn more
   - icon: 🧩
     title: Structured Output
-    details: Typed schemas with generation guides constrain output to exactly the shape you need.
+    details: "Type-safe JSON generation using schemas and Apple's generation guide system."
+    link: /guide/structured-output
+    linkText: Learn more
   - icon: 🛠️
     title: Tool Calling
-    details: Give the model tools to call during generation. Define schemas, implement handlers, get structured results.
+    details: "Define tools as classes, get structured invocations back from the model."
+    link: /guide/tools
+    linkText: Learn more
+  - icon: 🔌
+    title: Chat & Responses APIs
+    details: "Use familiar Chat-style and Responses-style APIs. Change your imports,  keep your code."
+    link: /guide/chat-api
+    linkText: Learn more
+
 ---

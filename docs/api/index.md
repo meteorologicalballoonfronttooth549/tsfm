@@ -22,6 +22,18 @@ Complete reference for all public exports from `tsfm`.
 | [GeneratedContent](/api/generation-schema#generatedcontent) | Structured generation result |
 | [Errors](/api/errors) | Error hierarchy and error codes |
 
+## Chat & Responses APIs
+
+| Export | Description |
+| --- | --- |
+| [Client](/api/chat) | Chat-style and Responses-style API client backed by on-device Apple Intelligence |
+
+```ts
+import Client from "tsfm-sdk/chat";
+```
+
+See the [Chat & Responses API reference](/api/chat) for full type documentation.
+
 ## Installation
 
 ```ts
@@ -34,4 +46,7 @@ import {
   Transcript,
   SamplingMode,
 } from "tsfm-sdk";
+
+// Chat API compatible interface
+import Client from "tsfm-sdk/chat";
 ```

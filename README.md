@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/tsfm-sdk"><img src="https://img.shields.io/npm/v/tsfm-sdk" alt="npm"></a>
-  <a href="https://github.com/codybrom/tsfm/actions/workflows/test.yml"><img src="https://github.com/codybrom/tsfm/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/codybrom/tsfm/actions/workflows/ci.yml"><img src="https://github.com/codybrom/tsfm/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/npm/l/tsfm-sdk" alt="license"></a>
 </p>
 
@@ -22,6 +22,7 @@
 - Structured output with typed schemas and generation guides
 - Tool calling
 - Transcript persistence
+- Chat-style and Responses-style APIs via `tsfm-sdk/chat`
 
 ## Quick Start
 
@@ -56,6 +57,7 @@ model.dispose();
 - [Streaming](https://tsfm.dev/guide/streaming) — token-by-token response streaming
 - [Structured Output](https://tsfm.dev/guide/structured-output) — typed schemas with generation guides
 - [Tools](https://tsfm.dev/guide/tools) — function calling
+- [Chat & Responses APIs](https://tsfm.dev/guide/chat-api) — familiar Chat-style and Responses-style interfaces
 - [API Reference](https://tsfm.dev/api/) — complete API docs
 - [Examples](https://tsfm.dev/examples/) — runnable code for every feature
 

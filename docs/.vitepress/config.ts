@@ -22,6 +22,7 @@ export default defineConfig({
   ],
 
   themeConfig: {
+    externalLinkIcon: true,
     logo: "/logo.svg",
 
     nav: [
@@ -46,7 +47,6 @@ export default defineConfig({
             { text: "Sessions", link: "/guide/sessions" },
             { text: "Streaming", link: "/guide/streaming" },
             { text: "Structured Output", link: "/guide/structured-output" },
-            { text: "JSON Schema", link: "/guide/json-schema" },
             { text: "Tools", link: "/guide/tools" },
             { text: "Transcripts", link: "/guide/transcripts" },
           ],
@@ -56,6 +56,15 @@ export default defineConfig({
           items: [
             { text: "Generation Options", link: "/guide/generation-options" },
             { text: "Error Handling", link: "/guide/error-handling" },
+          ],
+        },
+        {
+          text: "Integrations",
+          items: [
+            {
+              text: "Chat & Responses APIs",
+              link: "/guide/chat-api",
+            },
           ],
         },
       ],
@@ -71,6 +80,7 @@ export default defineConfig({
             { text: "Tool", link: "/api/tool" },
             { text: "Transcript", link: "/api/transcript" },
             { text: "Errors", link: "/api/errors" },
+            { text: "Chat & Responses APIs", link: "/api/chat" },
           ],
         },
       ],
@@ -87,6 +97,10 @@ export default defineConfig({
             { text: "Generation Options", link: "/examples/generation-options" },
             { text: "Transcripts", link: "/examples/transcript" },
             { text: "Content Tagging", link: "/examples/content-tagging" },
+            {
+              text: "Chat & Responses APIs",
+              link: "/examples/chat-api",
+            },
           ],
         },
       ],

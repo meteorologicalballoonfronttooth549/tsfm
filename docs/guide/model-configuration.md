@@ -1,6 +1,10 @@
 # Model Configuration
 
-`SystemLanguageModel` is the entry point for accessing the on-device model. It wraps Apple's Foundation Models framework and provides availability checking before you create sessions.
+`SystemLanguageModel` is the entry point for the on-device model. It wraps the native model pointer to gate availability before you create sessions.
+
+::: info
+The **Swift** equivalent is [`SystemLanguageModel`](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel).
+:::
 
 ## Creating a Model
 
@@ -19,12 +23,39 @@ const model = new SystemLanguageModel({
 
 Both options are optional and default to the values shown above.
 
+## Guardrails
+
+Guardrails control how the model handles potentially unsafe content in prompts and responses.
+
+::: info
+The **Swift** equivalent is [`SystemLanguageModel.Guardrails`](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel/guardrails).
+:::
+
+| Value | Description |
+| --- | --- |
+| `DEFAULT` | Blocks unsafe content in both prompts and responses. Use this for most applications. |
+| `PERMISSIVE_CONTENT_TRANSFORMATIONS` | Allows transforming potentially unsafe text input into text responses. Use this when your app needs to process user-generated content that may contain sensitive material (e.g., content moderation tools, text rewriting). |
+
+```ts
+const model = new SystemLanguageModel({
+  guardrails: SystemLanguageModelGuardrails.PERMISSIVE_CONTENT_TRANSFORMATIONS,
+});
+```
+
+With `DEFAULT` guardrails, unsafe content may trigger a `GuardrailViolationError`. With `PERMISSIVE_CONTENT_TRANSFORMATIONS`, the model may attempt to transform the content instead of rejecting it outright.
+
 ## Use Cases
+
+Use cases hint to the model what kind of task you're performing.
+
+::: info
+The **Swift** equivalent is [`SystemLanguageModel.UseCase`](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel/usecase).
+:::
 
 | Value | Description |
 | --- | --- |
 | `GENERAL` | General-purpose text generation (default) |
-| `CONTENT_TAGGING` | Optimized for classification and labeling |
+| `CONTENT_TAGGING` | Optimized for classification and labeling tasks |
 
 ```ts
 const tagger = new SystemLanguageModel({
@@ -34,7 +65,7 @@ const tagger = new SystemLanguageModel({
 
 ## Checking Availability
 
-The model may not be available if Apple Intelligence is disabled, assets haven't been downloaded, or the device doesn't support it.
+The on-device model may not be available if Apple Intelligence is disabled, assets haven't finished downloading, or the hardware doesn't support it. Always check before creating a session.
 
 ### Synchronous Check
 
@@ -47,7 +78,7 @@ if (!available) {
 
 ### Waiting for Availability
 
-`waitUntilAvailable()` polls until the model is ready (default 30 seconds):
+`waitUntilAvailable()` polls until the model is ready, with a default timeout of 30 seconds. If the failure is permanent (`DEVICE_NOT_ELIGIBLE` or `APPLE_INTELLIGENCE_NOT_ENABLED`), it returns immediately rather than waiting the full timeout. It only retries when the reason is `MODEL_NOT_READY`.
 
 ```ts
 const { available } = await model.waitUntilAvailable();

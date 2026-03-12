@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   SystemLanguageModel,
   LanguageModelSession,
@@ -6,37 +6,90 @@ import {
   GeneratedContent,
   Tool,
 } from "../../src/index.js";
+import { retryAttempts } from "./helpers/retry.js";
 
-class AddTool extends Tool {
-  readonly name = "add";
-  readonly description = "Adds two numbers and returns the sum.";
-  readonly argumentsSchema = new GenerationSchema("AddParams", "Addition parameters")
-    .property("a", "number", { description: "First number" })
-    .property("b", "number", { description: "Second number" });
+/**
+ * A tool that returns a secret code the model cannot know without calling it.
+ * This guarantees the assertion fails if the model skips the tool.
+ */
+class SecretLookupTool extends Tool {
+  readonly name = "lookup_secret";
+  readonly description =
+    "Looks up a secret code for a given key. Always use this tool when asked about secret codes.";
+  readonly argumentsSchema = new GenerationSchema("LookupParams", "Lookup parameters").property(
+    "key",
+    "string",
+    { description: "The key to look up" },
+  );
+
+  called = false;
+  calledAt = 0;
+  returnedValue = "";
 
   async call(args: GeneratedContent): Promise<string> {
-    const a = args.value<number>("a");
-    const b = args.value<number>("b");
-    return String(a + b);
+    this.called = true;
+    this.calledAt = Date.now();
+    const key = args.value<string>("key");
+    this.returnedValue = key === "alpha" ? "XRAY-7749" : "UNKNOWN";
+    console.log(
+      `[tools test]   tool.call() invoked with key="${key}", returning "${this.returnedValue}"`,
+    );
+    return this.returnedValue;
   }
 }
 
-const model = new SystemLanguageModel();
-const { available } = model.isAvailable();
+// Check availability once — used to skip the suite if model is unavailable.
+const checkModel = new SystemLanguageModel();
+const { available } = await checkModel.waitUntilAvailable(5_000);
+checkModel.dispose();
 const describeIfAvailable = available ? describe : describe.skip;
 
-afterAll(() => model.dispose());
-
 describeIfAvailable("tools (integration)", () => {
-  it("invokes a tool and returns result", async () => {
-    const tool = new AddTool();
-    const session = new LanguageModelSession({
-      instructions: "Use the add tool to answer math questions. Be concise.",
-      tools: [tool],
-    });
-    const reply = await session.respond("What is 7 + 3?");
-    expect(reply).toContain("10");
-    session.dispose();
-    tool.dispose();
-  }, 120_000);
+  it("invokes a tool and includes its result", { timeout: 40_000 }, async () => {
+    const { successes } = await retryAttempts(
+      async () => {
+        const model = new SystemLanguageModel();
+        const tool = new SecretLookupTool();
+        const session = new LanguageModelSession({
+          model,
+          instructions:
+            "You have access to a lookup_secret tool. You MUST call it when asked about secret codes. " +
+            "Do NOT guess or make up codes. Always call the tool first, then reply with only the code.",
+          tools: [tool],
+        });
+
+        try {
+          const reply = await Promise.race([
+            session.respond(
+              'Use the lookup_secret tool to find the secret code for key "alpha". ' +
+                "Do not guess — call the tool.",
+            ),
+            new Promise<never>((_, reject) => {
+              setTimeout(() => {
+                session.cancel();
+                reject(new Error("Attempt timed out"));
+              }, 5_000);
+            }),
+          ]);
+
+          if (tool.called && reply.includes("XRAY-7749")) {
+            return { success: true, detail: `reply: "${reply.slice(0, 80)}"` };
+          }
+          return {
+            success: false,
+            detail: tool.called
+              ? `tool called but reply missing code: "${reply.slice(0, 100)}"`
+              : `tool not called: "${reply.slice(0, 100)}"`,
+          };
+        } finally {
+          session.dispose();
+          tool.dispose();
+          model.dispose();
+        }
+      },
+      { maxAttempts: 5, requiredSuccesses: 1, label: "tools test" },
+    );
+
+    expect(successes).toBeGreaterThanOrEqual(1);
+  });
 });

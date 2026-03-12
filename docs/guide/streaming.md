@@ -1,6 +1,10 @@
 # Streaming
 
-Stream responses token-by-token using an async iterator. This is useful for displaying results as they're generated.
+TSFM can stream responses token-by-token using an async iterator. The on-device model produces cumulative snapshots, and the SDK diffs them internally so you receive only the new tokens on each iteration.
+
+::: info
+The **Swift** equivalent is [`LanguageModelSession.ResponseStream`](https://developer.apple.com/documentation/foundationmodels/languagemodelsession/responsestream).
+:::
 
 ## Basic Streaming
 
@@ -17,7 +21,7 @@ console.log();
 session.dispose();
 ```
 
-Each `chunk` is a string containing only the **new** tokens since the last iteration. The SDK handles diffing Apple's cumulative snapshots internally.
+Each `chunk` is a string containing only the **new** tokens since the last iteration.
 
 ## With Options
 
@@ -42,13 +46,26 @@ for await (const chunk of session.streamResponse("Explain TypeScript")) {
 console.log("\n\nFull response length:", full.length);
 ```
 
-## How It Works
+## Chat API Streaming
 
-Under the hood, `streamResponse()`:
+If you prefer the Chat API streaming interface, the [compatibility layer](/guide/chat-api#streaming) provides `stream: true` with `ChatCompletionChunk` objects:
 
-1. Creates a stream reference via the C bridge
-2. Spawns a single Swift Task that yields cumulative snapshots
-3. Diffs each snapshot against the previous to yield only new tokens
-4. Releases the stream reference when iteration completes
+```ts
+import Client from "tsfm-sdk/chat";
+const client = new Client();
 
-The async iterator keeps the Node.js event loop alive until streaming finishes.
+const stream = await client.chat.completions.create({
+  messages: [{ role: "user", content: "Tell me a joke" }],
+  stream: true,
+});
+
+for await (const chunk of stream) {
+  const delta = chunk.choices[0].delta.content;
+  if (delta) process.stdout.write(delta);
+}
+client.close();
+```
+
+## Cleanup
+
+The stream reference is released automatically when iteration completes or the session is disposed. The SDK keeps the Node.js event loop alive while streaming, so the process won't exit mid-stream.

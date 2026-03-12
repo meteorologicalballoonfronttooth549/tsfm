@@ -1,6 +1,6 @@
 {
   "name": "tsfm-sdk",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Unofficial TypeScript bindings for Apple's Foundation Models framework (Apple Intelligence on-device LLM)",
   "license": "Apache-2.0",
   "type": "module",
@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./chat": {
+      "import": "./dist/compat/index.js",
+      "types": "./dist/compat/index.d.ts"
     }
   },
   "scripts": {
@@ -22,8 +26,11 @@
     "format:check": "prettier --check src/",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run --config tests/integration/vitest.config.ts"
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:coverage": "vitest run --coverage",
+    "example": "tsx scripts/run-example.ts",
+    "typecheck": "tsc --noEmit"
   },
   "files": [
     "dist/",
@@ -39,6 +46,7 @@
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.4",
+    "openai": "^6.27.0",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",

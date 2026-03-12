@@ -1,5 +1,45 @@
 import { getFunctions, decodeAndFreeString, type NativePointer } from "./bindings.js";
 import { statusToError, FoundationModelsError } from "./errors.js";
+import type { JsonSchema, JsonObject } from "./schema.js";
+
+export type TranscriptEntryRole = "instructions" | "user" | "response" | "tool";
+
+export interface TranscriptTextContent {
+  type: "text";
+  text: string;
+  id: string;
+}
+
+export interface TranscriptStructuredContent {
+  type: "structure";
+  id: string;
+  structure: { source: string; content: JsonObject };
+}
+
+export type TranscriptContent = TranscriptTextContent | TranscriptStructuredContent;
+
+export interface TranscriptToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface TranscriptEntry {
+  id: string;
+  role: TranscriptEntryRole;
+  contents?: TranscriptContent[];
+  // instructions-specific
+  tools?: JsonObject[];
+  // user-specific
+  options?: JsonObject;
+  responseFormat?: JsonSchema;
+  // response-specific
+  toolCalls?: TranscriptToolCall[];
+  assets?: string[];
+  // tool-specific
+  toolName?: string;
+  toolCallID?: string;
+}
 
 export class Transcript {
   /** @internal raw session pointer — backs the live session's native handle */
@@ -39,8 +79,15 @@ export class Transcript {
   }
 
   /** Export the transcript as a parsed dictionary (mirrors Python's Transcript.to_dict()). */
-  toDict(): Record<string, unknown> {
+  toDict(): JsonObject {
     return JSON.parse(this.toJson());
+  }
+
+  /** Return the typed transcript entries from the native JSON. */
+  entries(): TranscriptEntry[] {
+    const data = JSON.parse(this.toJson());
+    const entries = data?.transcript?.entries;
+    return Array.isArray(entries) ? entries : [];
   }
 
   /** Deserialize a previously exported transcript JSON string. */
@@ -55,7 +102,7 @@ export class Transcript {
   }
 
   /** Deserialize a transcript from a dictionary (mirrors Python's Transcript.from_dict()). */
-  static fromDict(dict: Record<string, unknown>): Transcript {
+  static fromDict(dict: JsonObject): Transcript {
     return Transcript.fromJson(JSON.stringify(dict));
   }
 }

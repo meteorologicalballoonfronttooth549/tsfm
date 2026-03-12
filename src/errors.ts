@@ -97,6 +97,21 @@ export class InvalidGenerationSchemaError extends GenerationError {
   }
 }
 
+/**
+ * The Apple Intelligence service (`generativeexperiencesd`) has crashed.
+ * Detected in `statusToError()` when UNKNOWN_ERROR details contain
+ * "SensitiveContentAnalysisML" or "ModelManagerError Code=1013".
+ */
+export class ServiceCrashedError extends GenerationError {
+  constructor(detail?: string) {
+    const recovery =
+      "The Apple Intelligence service has crashed. " +
+      "Restart it by running: launchctl kickstart -k gui/$(id -u)/com.apple.generativeexperiencesd";
+    super(detail ? `${recovery}\n\nOriginal error: ${detail}` : recovery);
+    this.name = "ServiceCrashedError";
+  }
+}
+
 export class ToolCallError extends FoundationModelsError {
   constructor(
     public readonly toolName: string,
@@ -131,6 +146,19 @@ export function statusToError(status: number, detail?: string | null): Generatio
     case GenerationErrorCode.INVALID_SCHEMA:
       return new InvalidGenerationSchemaError(`Invalid schema${suffix}`);
     default:
+      if (status === GenerationErrorCode.UNKNOWN_ERROR && detail) {
+        if (
+          detail.includes("SensitiveContentAnalysisML") ||
+          detail.includes("ModelManagerError Code=1013")
+        ) {
+          return new ServiceCrashedError(detail);
+        }
+        if (detail.includes("ModelManagerError Code=1041")) {
+          return new InvalidGenerationSchemaError(
+            `The on-device model rejected the schema${suffix}`,
+          );
+        }
+      }
       return new GenerationError(`Unknown error (code ${status})${suffix}`);
   }
 }

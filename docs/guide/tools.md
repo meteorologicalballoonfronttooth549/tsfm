@@ -1,6 +1,10 @@
 # Tools
 
-Tools let the model call functions during generation. Define a tool with a name, description, argument schema, and handler — the model decides when to call it.
+Tools let the model call your functions during generation. It is up to the model to decide if a tool can help, generate arguments matching your schema, call the tool, receive the result and continue generating.
+
+::: info
+The **Swift** equivalent is the Foundation Models [`Tool`](https://developer.apple.com/documentation/foundationmodels/tool) protocol.
+:::
 
 ## Defining a Tool
 
@@ -76,3 +80,19 @@ tool.dispose();
 ```
 
 Tools can be reused across sessions — just dispose after all sessions are done.
+
+## Best Practices
+
+The Foundation Model [`Tool` documentation](https://developer.apple.com/documentation/foundationmodels/tool) recommends:
+
+- **Limit to 3–5 tools per session.** Tool schemas and descriptions consume context window space. More tools means less room for conversation. If your session exceeds the context size, split work across new sessions.
+- **Keep descriptions short.** A brief phrase is enough. Long descriptions add latency and use up context.
+- **Pre-run essential tools.** If a tool's output is always needed, call it yourself and include the result in the prompt or instructions rather than waiting for the model to discover it needs the tool.
+
+## Tool Chaining
+
+The model can call multiple tools in sequence within a single `respond()` call. If the first tool's output informs a second tool call, the model handles the chaining automatically — you don't need to loop.
+
+## Chat API Tool Calling
+
+If you prefer the Chat API tool calling interface, the [compatibility layer](/guide/chat-api#tool-calling) supports `tools` with the standard `ChatCompletionTool` format. You define tools as JSON objects instead of extending the `Tool` class, and handle tool execution yourself between requests.

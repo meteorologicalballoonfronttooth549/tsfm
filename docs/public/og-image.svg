@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e" />
+      <stop offset="100%" stop-color="#16213e" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6dd57e" />
+      <stop offset="100%" stop-color="#30b8d0" />
+    </linearGradient>
+    <linearGradient id="accent-text" x1="80" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9ae4a6" />
+      <stop offset="100%" stop-color="#6fd4e4" />
+    </linearGradient>
+    <linearGradient id="accent-fade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6dd57e" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#30b8d0" stop-opacity="0.06" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Subtle gradient orbs -->
+  <circle cx="1000" cy="100" r="350" fill="url(#accent-fade)" />
+  <circle cx="150" cy="550" r="300" fill="url(#accent-fade)" />
+
+  <!-- Logo: rounded square with neural network — larger -->
+  <g transform="translate(80, 95) scale(1.5)">
+    <rect width="128" height="128" rx="28" fill="url(#accent)" />
+    <g fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.2" stroke-linecap="round">
+      <line x1="64" y1="24" x2="36" y2="48" />
+      <line x1="64" y1="24" x2="92" y2="48" />
+      <line x1="36" y1="48" x2="92" y2="48" />
+      <line x1="36" y1="48" x2="64" y2="64" />
+      <line x1="92" y1="48" x2="64" y2="64" />
+      <line x1="64" y1="24" x2="64" y2="64" />
+      <line x1="36" y1="48" x2="92" y2="80" />
+      <line x1="92" y1="48" x2="36" y2="80" />
+      <line x1="36" y1="48" x2="36" y2="80" />
+      <line x1="92" y1="48" x2="92" y2="80" />
+      <line x1="36" y1="80" x2="92" y2="80" />
+      <line x1="64" y1="64" x2="36" y2="80" />
+      <line x1="64" y1="64" x2="92" y2="80" />
+      <line x1="64" y1="104" x2="64" y2="64" />
+      <line x1="36" y1="80" x2="64" y2="104" />
+      <line x1="92" y1="80" x2="64" y2="104" />
+    </g>
+    <g fill="white" stroke="rgba(255,255,255,0.9)" stroke-width="1.5">
+      <circle cx="64" cy="24" r="5.5" />
+      <circle cx="36" cy="48" r="5.5" />
+      <circle cx="92" cy="48" r="5.5" />
+      <circle cx="64" cy="64" r="5.5" />
+      <circle cx="36" cy="80" r="5.5" />
+      <circle cx="92" cy="80" r="5.5" />
+      <circle cx="64" cy="104" r="5.5" />
+    </g>
+  </g>
+
+  <!-- Title — large -->
+  <text x="310" y="210" font-family="-apple-system, 'Fira Code', sans-serif" font-size="120" font-weight="700"
+    fill="white" letter-spacing="-4">tsfm</text>
+
+  <!-- Tagline — prominent -->
+  <text x="316" y="275" font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" font-size="36"
+    font-weight="400" fill="rgba(255,255,255,0.764)">TypeScript SDK for Apple Foundation Models</text>
+
+  <!-- Accent line -->
+  <rect x="80" y="440" width="160" height="4" rx="2" fill="url(#accent)" />
+
+  <!-- Big subtitle -->
+  <text x="80" y="390" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="52"
+    letter-spacing=".4" font-weight="500" fill="url(#accent-text)">On-device Apple Intelligence in Node.js</text>
+
+  <!-- Bottom tags — larger -->
+  <g font-family="-apple-system, 'SF Mono', 'Fira Code', monospace" font-size="38" fill="rgba(255,255,255,0.821)">
+    <text x="80" y="525">No Keys. No Fees. <tspan font-style="italic">It Just Works.</tspan></text>
+  </g>
+</svg>

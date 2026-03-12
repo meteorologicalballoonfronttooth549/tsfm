@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "og-image": "rsvg-convert public/og-image.svg -w 1200 -h 630 -o public/og-image.png"
   },
   "devDependencies": {
     "vitepress": "^1.6.3"

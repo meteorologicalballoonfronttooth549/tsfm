@@ -6,7 +6,7 @@
 
 <p align="center">
   TypeScript SDK for Apple's <a href="https://developer.apple.com/documentation/foundationmodels">Foundation Models</a> framework.<br>
-  On-device Apple Intelligence in Node.js — No keys. No servers. <i>It just works.</i>
+  On-device Apple Intelligence in Node.js — No keys. No fees. <i>It just works.</i>
 </p>
 
 <p align="center">

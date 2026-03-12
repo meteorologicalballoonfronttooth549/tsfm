@@ -11,14 +11,31 @@ export default defineConfig({
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
     ["meta", { name: "theme-color", content: "#0071e3" }],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:url", content: "https://tsfm.dev" }],
+    ["meta", { property: "og:title", content: "tsfm" }],
     [
       "meta",
       {
         property: "og:description",
         content:
-          "TypeScript SDK for Apple's Foundation Models — on-device AI inference in Node.js. No API keys. No servers.",
+          "TypeScript SDK for Apple's Foundation Models — on-device AI inference in Node.js. No keys. No fees. It just works.",
       },
     ],
+    ["meta", { property: "og:image", content: "https://tsfm.dev/og-image.png" }],
+    ["meta", { property: "og:image:width", content: "1200" }],
+    ["meta", { property: "og:image:height", content: "630" }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:title", content: "tsfm" }],
+    [
+      "meta",
+      {
+        name: "twitter:description",
+        content:
+          "TypeScript SDK for Apple's Foundation Models — on-device AI inference in Node.js. No keys. No fees. It just works.",
+      },
+    ],
+    ["meta", { name: "twitter:image", content: "https://tsfm.dev/og-image.png" }],
   ],
 
   themeConfig: {

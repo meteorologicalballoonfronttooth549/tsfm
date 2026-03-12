@@ -22,6 +22,21 @@ abstract class Tool {
 | `argumentsSchema` | `GenerationSchema` | Schema defining the tool's arguments |
 | `call(args)` | `async (GeneratedContent) => string` | Handler invoked when the model calls this tool |
 
+## Properties
+
+### `onCall`
+
+Optional callback fired at the start of each tool invocation, before `call()` runs. Useful for showing UI indicators (e.g. "Using tool: search") while the model waits for the tool result.
+
+```ts
+onCall?: (toolName: string) => void;
+```
+
+```ts
+const tool = new WeatherTool();
+tool.onCall = (name) => console.log(`Tool invoked: ${name}`);
+```
+
 ## Methods
 
 ### `dispose()`

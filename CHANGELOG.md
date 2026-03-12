@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-03-12
+
+### Added
+
+- `Tool.onCall` — optional callback that fires at the start of each tool invocation, before `call()` runs. Useful for showing UI indicators while the model waits for tool results.
+
 ## [0.3.0] - 2026-03-11
 
 ### Added
@@ -127,7 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `build-native.sh` script for building the dylib from vendored Swift source
 - `verify-native.js` postinstall script for SHA256 verification with automatic rebuild
 
-[Unreleased]: https://github.com/codybrom/tsfm/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/codybrom/tsfm/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/codybrom/tsfm/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/codybrom/tsfm/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/codybrom/tsfm/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/codybrom/tsfm/compare/v0.2.1...v0.2.2

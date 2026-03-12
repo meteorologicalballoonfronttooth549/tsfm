@@ -49,6 +49,13 @@ export abstract class Tool {
    */
   abstract call(args: GeneratedContent): Promise<string>;
 
+  /**
+   * Optional callback fired at the start of each tool invocation, before
+   * `call()` runs. Useful for showing UI indicators while the model waits
+   * for the tool result.
+   */
+  onCall?: (toolName: string) => void;
+
   /** @internal Set during registration with a session. */
   _nativeTool: NativePointer | null = null;
   private _callback: KoffiCallback | null = null;
@@ -77,6 +84,7 @@ export abstract class Tool {
     // may invoke this tool multiple times within a single session.
     this._callback = koffi.register((contentRef: NativePointer, callId: number) => {
       try {
+        this.onCall?.(this.name);
         const content = new GeneratedContent(contentRef);
         this.call(content)
           .then((result) => {

